@@ -32,15 +32,19 @@ struct ContentView: View {
             }
             .foregroundColor(.black) // changes text color
             .frame(width: 200, height: 50) // size of button
-            .background(Color.green.opacity(4.0)) // fill color
-            .border(Color.black, width: 2) // border color
+            //.background(Color.green.opacity(0.4)) // fill color
+            //.border(Color.black, width: 2) // border color
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2)).background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(4)))
 
             Spacer() // pushes rest of content down
             
             // Text Fields
             if (showTextFields) {
                 TextField("Enter your name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.bottom, 20)
                 TextField("Enter your group's name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
+                    .textFieldStyle(.roundedBorder)
             }
 
             
