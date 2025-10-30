@@ -1,11 +1,10 @@
-//
-//  ContentView.swift
-//  Chorely
-//
-//  Created by Tian Yu Dong on 10/29/25.
-//
-
 import SwiftUI
+
+// Make a simple struct for navigation data
+struct UserInfo: Hashable {
+    let name: String
+    let groupName: String
+}
 
 struct ContentView: View {
     @State private var showTextFields = false
@@ -13,69 +12,70 @@ struct ContentView: View {
     @State private var groupName = ""
     
     var body: some View {
-        VStack {
-            // App title centered at top
-            Text("Welcome to Chorely")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 200)
-            
-            Spacer()
-    
-            // When pressed, text fields will show
-            Button("Get Started") {
-                //print("hey there") // used for testing. Message will pop up in console when button is pressed in simulator
-                showTextFields.toggle()
-                    
-            }
-            .foregroundColor(.black) // changes text color
-            .frame(width: 200, height: 50) // size of button
-            //.background(Color.green.opacity(0.4)) // fill color
-            //.border(Color.black, width: 2) // border color
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2)).background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(4)))
-
-            Spacer() // pushes rest of content down
-            
-            // Text Fields
-            if (showTextFields) {
-                TextField("Enter your name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.bottom, 20)
-                TextField("Enter your group's name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
-                    .textFieldStyle(.roundedBorder)
+        NavigationStack {
+            VStack {
+                // App title centered at top
+                Text("Welcome to Chorely")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 200)
                 
                 Spacer()
                 
-                Button("Let's Go!") {
-                    // TO DO: want this to connect to the home screen
-                    
+                // Get Started button
+                Button("Get Started") {
+                    withAnimation {
+                        showTextFields.toggle()
+                    }
                 }
-                .fontWeight(.bold)
-                .italic()
-                .padding([.top, .leading], 180)
-            }
-
-            
-            Spacer()
-
-
-            
-            
-            /*
-            // Image of the globe
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-             // Label
-             Text("Hello World!")
-             */
+                .foregroundColor(.black)
+                .frame(width: 200, height: 50)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.black, lineWidth: 2)
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white)
+                )
                 
+                Spacer()
+                
+                // Text Fields
+                if showTextFields {
+                    VStack(spacing: 20) {
+                        TextField("Enter your name", text: $name)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("Enter your group's name", text: $groupName)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        // NavigationLink now uses a Hashable struct
+                        NavigationLink("Let's Go!", value: UserInfo(name: name, groupName: groupName))
+                            .fontWeight(.bold)
+                            .italic()
+                            .disabled(name.isEmpty || groupName.isEmpty)
+                    }
+                    .padding(.horizontal, 40)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.green.ignoresSafeArea())
+            
+            // Match the struct type here
+            .navigationDestination(for: UserInfo.self) { info in
+                HomeView(name: info.name, groupName: info.groupName)
+            }
         }
-        .padding()
     }
 }
+
+
 
 #Preview {
     ContentView()
