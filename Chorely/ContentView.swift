@@ -27,7 +27,7 @@ struct ContentView: View {
             .foregroundColor(.black) // changes text color
             .frame(width: 200, height: 50) // size of button
             .background(Color.green.opacity(4.0)) // fill color
-            .border(Color.blue, width: 1) // border color
+            .border(Color.black, width: 2) // border color
 
             Spacer() // pushes rest of content down
             
