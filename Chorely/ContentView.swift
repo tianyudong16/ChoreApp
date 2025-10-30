@@ -8,6 +8,10 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var showTextFields = false
+    @State private var name = ""
+    @State private var groupName = ""
+    
     var body: some View {
         VStack {
             
@@ -22,7 +26,9 @@ struct ContentView: View {
     
             // When pressed, text fields will show
             Button("Get Started") {
-                print("hey there") // used for testing. Message will pop up in console when button is pressed in simulator
+                //print("hey there") // used for testing. Message will pop up in console when button is pressed in simulator
+                showTextFields.toggle()
+                    
             }
             .foregroundColor(.black) // changes text color
             .frame(width: 200, height: 50) // size of button
@@ -31,8 +37,12 @@ struct ContentView: View {
 
             Spacer() // pushes rest of content down
             
-            TextField("Enter your name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
-            TextField("Enter your group's name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
+            // Text Fields
+            if (showTextFields) {
+                TextField("Enter your name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
+                TextField("Enter your group's name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
+            }
+
             
             Spacer()
 
