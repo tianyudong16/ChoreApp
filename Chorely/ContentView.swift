@@ -14,13 +14,13 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
-            
             // App title centered at top
             Text("Welcome to Chorely")
                 .font(.largeTitle)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 200)
             
             Spacer()
     
@@ -45,6 +45,16 @@ struct ContentView: View {
                     .padding(.bottom, 20)
                 TextField("Enter your group's name", text: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Value@*/.constant("")/*@END_MENU_TOKEN@*/)
                     .textFieldStyle(.roundedBorder)
+                
+                Spacer()
+                
+                Button("Let's Go!") {
+                    // TO DO: want this to connect to the home screen
+                    
+                }
+                .fontWeight(.bold)
+                .italic()
+                .padding([.top, .leading], 180)
             }
 
             
