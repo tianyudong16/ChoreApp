@@ -1,4 +1,6 @@
 import SwiftUI
+//milo is testing if he can push to git
+
 
 // Make a simple struct for navigation data
 struct UserInfo: Hashable {
