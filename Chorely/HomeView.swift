@@ -14,12 +14,17 @@ struct HomeView: View {
     
     var body: some View {
         VStack {
-            Text("Welcome, \(name)!")
-                .font(.largeTitle.bold())
+            Text("Welcome \(name)!")
+                .font(.title.bold())
             
             Text("Group: \(groupName)")
-                .font(.title2)
+                .font(.title)
                 .foregroundColor(.secondary)
+                .padding(.bottom, 30)
+            
+            Text("House Group Dashboard")
+                .fontWeight(.heavy)
+                .font(.system(size: 30))
             
             Spacer()
         }
