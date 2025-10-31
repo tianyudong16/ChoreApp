@@ -30,16 +30,10 @@ struct ContentView: View {
                         showTextFields.toggle()
                     }
                 }
-                .foregroundColor(.black)
+                .foregroundColor(Color(uiColor: .label))
                 .frame(width: 200, height: 50)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.black, lineWidth: 2)
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary, lineWidth: 2))
+                .background(Color(uiColor: .systemBackground))
                 
                 Spacer()
                 
@@ -64,8 +58,10 @@ struct ContentView: View {
                 Spacer()
             }
             .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.green.ignoresSafeArea())
+            
+            // Background color
+            //.frame(maxWidth: .infinity, maxHeight: .infinity)
+            //.background(Color.green.ignoresSafeArea())
             
             // Match the struct type here
             .navigationDestination(for: UserInfo.self) { info in
