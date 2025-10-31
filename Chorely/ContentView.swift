@@ -65,7 +65,8 @@ struct ContentView: View {
             
             // Match the struct type here
             .navigationDestination(for: UserInfo.self) { info in
-                HomeView(name: info.name, groupName: info.groupName)
+                //HomeView(name: info.name, groupName: info.groupName)
+                MainTabView(user: info)
             }
         }
     }
