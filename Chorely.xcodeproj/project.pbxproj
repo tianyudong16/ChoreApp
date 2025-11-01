@@ -6,6 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		060EA0012EB5C32B0058935C /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA0002EB5C32B0058935C /* FirebaseAnalytics */; };
+		060EA0032EB5C32B0058935C /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA0022EB5C32B0058935C /* FirebaseAuth */; };
+		060EA0052EB5C32B0058935C /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA0042EB5C32B0058935C /* FirebaseCore */; };
+		060EA0072EB5C32B0058935C /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA0062EB5C32B0058935C /* FirebaseDatabase */; };
+		060EA0092EB5C32B0058935C /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA0082EB5C32B0058935C /* FirebaseFirestore */; };
+		060EA00B2EB5C32B0058935C /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA00A2EB5C32B0058935C /* FirebaseMessaging */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		EA788F582EB2DA120005E1E3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +38,30 @@
 		EA788F612EB2DA120005E1E3 /* ChorelyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChorelyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		060E9FFD2EB5C27C0058935C /* Exceptions for "Chorely" folder in "ChorelyTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = EA788F562EB2DA120005E1E3 /* ChorelyTests */;
+		};
+		060E9FFE2EB5C27C0058935C /* Exceptions for "Chorely" folder in "ChorelyUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = EA788F602EB2DA120005E1E3 /* ChorelyUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EA788F4C2EB2DA110005E1E3 /* Chorely */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				060E9FFD2EB5C27C0058935C /* Exceptions for "Chorely" folder in "ChorelyTests" target */,
+				060E9FFE2EB5C27C0058935C /* Exceptions for "Chorely" folder in "ChorelyUITests" target */,
+			);
 			path = Chorely;
 			sourceTree = "<group>";
 		};
@@ -52,6 +82,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				060EA00B2EB5C32B0058935C /* FirebaseMessaging in Frameworks */,
+				060EA0012EB5C32B0058935C /* FirebaseAnalytics in Frameworks */,
+				060EA0052EB5C32B0058935C /* FirebaseCore in Frameworks */,
+				060EA0072EB5C32B0058935C /* FirebaseDatabase in Frameworks */,
+				060EA0092EB5C32B0058935C /* FirebaseFirestore in Frameworks */,
+				060EA0032EB5C32B0058935C /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +148,12 @@
 			);
 			name = Chorely;
 			packageProductDependencies = (
+				060EA0002EB5C32B0058935C /* FirebaseAnalytics */,
+				060EA0022EB5C32B0058935C /* FirebaseAuth */,
+				060EA0042EB5C32B0058935C /* FirebaseCore */,
+				060EA0062EB5C32B0058935C /* FirebaseDatabase */,
+				060EA0082EB5C32B0058935C /* FirebaseFirestore */,
+				060EA00A2EB5C32B0058935C /* FirebaseMessaging */,
 			);
 			productName = Chorely;
 			productReference = EA788F4A2EB2DA110005E1E3 /* Chorely.app */;
@@ -195,6 +237,9 @@
 			);
 			mainGroup = EA788F412EB2DA110005E1E3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EA788F4B2EB2DA110005E1E3 /* Products */;
 			projectDirPath = "";
@@ -558,6 +603,50 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		060EA0002EB5C32B0058935C /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		060EA0022EB5C32B0058935C /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		060EA0042EB5C32B0058935C /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		060EA0062EB5C32B0058935C /* FirebaseDatabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseDatabase;
+		};
+		060EA0082EB5C32B0058935C /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		060EA00A2EB5C32B0058935C /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EA788F422EB2DA110005E1E3 /* Project object */;
 }
