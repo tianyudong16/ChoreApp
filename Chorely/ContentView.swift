@@ -1,10 +1,28 @@
 import SwiftUI
-
+import FirebaseFirestore
 
 // Make a simple struct for navigation data
 struct UserInfo: Hashable {
     let name: String
     let groupName: String
+}
+
+let db = Firestore.firestore()
+
+func addUser(name: String, groupName: String) {
+    print("Attempting to add user: \(name), \(groupName)")
+    
+    db.collection("Users").addDocument(data: [
+        "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
+        "color": "blue",//placeholder, we will write code to ensure each group member has a unique color
+        "groupName": groupName,
+    ]) { err in
+        if let err = err {
+            print("Error adding document: \(err)")
+        } else {
+            print("User added successfully!")
+        }
+    }
 }
 
 struct ContentView: View {
@@ -51,6 +69,9 @@ struct ContentView: View {
                             .fontWeight(.bold)
                             .italic()
                             .disabled(name.isEmpty || groupName.isEmpty)
+                            .simultaneousGesture(TapGesture().onEnded {
+                                addUser(name: name, groupName: groupName)
+                            })
                     }
                     .padding(.horizontal, 40)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
