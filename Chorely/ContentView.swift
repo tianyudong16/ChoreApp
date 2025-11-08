@@ -7,23 +7,7 @@ struct UserInfo: Hashable {
     let groupName: String
 }
 
-let db = Firestore.firestore()
-
-func addUser(name: String, groupName: String) {
-    print("Attempting to add user: \(name), \(groupName)")
-    
-    db.collection("Users").addDocument(data: [
-        "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
-        "color": "blue",//placeholder, we will write code to ensure each group member has a unique color
-        "groupName": groupName,
-    ]) { err in
-        if let err = err {
-            print("Error adding document: \(err)")
-        } else {
-            print("User added successfully!")
-        }
-    }
-}
+let db = FirebaseInterface.shared.firestore
 
 struct ContentView: View {
     @State private var showTextFields = false
@@ -70,7 +54,7 @@ struct ContentView: View {
                             .italic()
                             .disabled(name.isEmpty || groupName.isEmpty)
                             .simultaneousGesture(TapGesture().onEnded {
-                                addUser(name: name, groupName: groupName)
+                                FirebaseInterface.shared.addUser(name: name, groupName: groupName)
                             })
                     }
                     .padding(.horizontal, 40)
