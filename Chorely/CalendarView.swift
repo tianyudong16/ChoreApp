@@ -97,6 +97,8 @@ struct CalendarView: View {
             days = date.calendarDisplayDays
         }
         .onChange(of: date) {
+            // This logic is correct. When the header changes $date,
+            // this triggers and rebuilds the 'days' array.
             days = date.calendarDisplayDays
         }
         Spacer()
