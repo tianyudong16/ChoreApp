@@ -20,41 +20,35 @@ struct CalendarView: View {
     
     var body: some View {
         VStack {
-            Text("Calendar")
-                .font(.largeTitle)
-                .padding(.bottom, 20)
-                .fontWeight(.bold)
-                
-            // ColorPicker
+            
+            CalendarHeaderView(date: $date)
+            
+            // The ColorPicker is right below the header for easy access
             LabeledContent("Calendar Color") {
                 ColorPicker("", selection: $color, supportsOpacity: false)
             }
-            .fontWeight(.semibold)
-            .padding(.horizontal)
-            .padding(.bottom, 5)
+            .padding(.horizontal) // Add some padding to match the calendar
+            .padding(.bottom, 5)   // Add a little space below it
+
             
-            // HEADER (shows month and year)
-            // This replaces the DatePicker
-            CalendarHeaderView(date: $date)
-            
-            
-            // --- Existing Weekday Headers ---
+            // Weekday Headers
+            // This will update its color when the picker changes
             HStack {
                 ForEach(daysOfWeek.indices, id: \.self) { index in
                 Text(daysOfWeek[index])
                         .fontWeight(.black)
-                        .foregroundStyle(color) // @State color used here
+                        .foregroundStyle(color) // Uses the @State color
                         .frame(maxWidth: .infinity)
                 }
             }
             .padding(.bottom, 5)
             
             
-            // Calendar Grid
+            // --- Calendar Grid ---
             LazyVGrid(columns: columns) {
                 ForEach(days, id: \.self) { day in
                     
-                    // --- Pre-calculate date states ---
+                    // Pre-calculate date states
                     let isToday = day.startOfDay == Date.now.startOfDay
                     let isSelected = day.startOfDay == selectedDate?.startOfDay
                     let isCurrentMonth = day.monthInt == date.monthInt
@@ -63,11 +57,11 @@ struct CalendarView: View {
                         // This creates an empty, invisible placeholder
                         Text("")
                             .frame(maxWidth: .infinity, minHeight: 50)
+                            .background(Color.clear) // Keep non-month days blank
                     } else {
-                        // --- This is a tappable day in the current month ---
+                        // This is a tappable day in the current month
                         Text(day.formatted(.dateTime.day()))
                             .fontWeight(.bold)
-                            // --- Updated Foreground Logic ---
                             // Text is white if it's selected OR today
                             .foregroundStyle(isSelected || isToday ? .white : .secondary)
                             .frame(maxWidth: .infinity, minHeight: 50)
@@ -75,15 +69,16 @@ struct CalendarView: View {
                             .background(
                                 Circle()
                                     .foregroundStyle(
-                                        // Priority 1: Highlight selected date
-                                        isSelected ? color.opacity(0.7) :
-                                        // Priority 2: Highlight today's date
-                                        isToday ? .red.opacity(1) :
-                                        // Priority 3: No highlight
-                                        color.opacity(0.2)
+                                        // Priority 1: Highlight selected date (strong)
+                                        isSelected ? color.opacity(0.8) :
+                                        
+                                        // Priority 2: Highlight today's date (strong, contrasting)
+                                        isToday ? .red.opacity(0.8) :
+                                        
+                                        // Priority 3: Default faint circle for all other days
+                                        color.opacity(0.3)
                                     )
                             )
-                            // Tap gesture
                             .onTapGesture {
                                 // Set the selected date to this day
                                 selectedDate = day.startOfDay
@@ -97,16 +92,14 @@ struct CalendarView: View {
             days = date.calendarDisplayDays
         }
         .onChange(of: date) {
-            // This logic is correct. When the header changes $date,
-            // this triggers and rebuilds the 'days' array.
             days = date.calendarDisplayDays
         }
-        Spacer()
+        .navigationTitle("Calendar")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-// Helper view
-// A reusable header for the calendar
+// HELPER VIEW for the header
 struct CalendarHeaderView: View {
     @Binding var date: Date
     private let calendar = Calendar.current
@@ -127,7 +120,7 @@ struct CalendarHeaderView: View {
             // Month and Year Title
             Text(monthYearFormatter.string(from: date))
                 .font(.title.bold())
-                .foregroundColor(.blue) // Feel free to change this color
+                .foregroundColor(.blue)
             
             Spacer()
             
@@ -150,7 +143,7 @@ struct CalendarHeaderView: View {
         }
     }
     
-    // Formatter for displaying current month and year
+    // Formatter for displaying "November 2025"
     private var monthYearFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"

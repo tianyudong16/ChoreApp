@@ -33,6 +33,12 @@ struct MainTabView: View {
             CalendarView()
                 .tabItem { Label("Calendar", systemImage: "calendar") }
                 .tag(2)
+            
+            ProfileView()
+                .tabItem{
+                    Label("Profile", systemImage:"person.crop.circle")}
+                .tag(3)
+                
         }
         .tint(.green) // tint for selected screen
     }
