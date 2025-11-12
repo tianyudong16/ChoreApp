@@ -17,7 +17,6 @@ struct UserInfo: Hashable {
 let db = FirebaseInterface.shared.firestore
 
 struct ContentView: View {
-    // NEW STATE
     // This state variable will control what view is shown
     // nil = Login Screen
     // UserInfo = Home Screen
@@ -29,7 +28,6 @@ struct ContentView: View {
     @State private var groupName = ""
     
     var body: some View {
-        // NEW LOGIC
         // If a user is logged in, show the MainTabView
         // Otherwise, show the login screen
         if let user = currentUser {
@@ -68,7 +66,7 @@ struct ContentView: View {
                             TextField("Enter your group's name", text: $groupName)
                                 .textFieldStyle(.roundedBorder)
                             
-                            // CHANGED: Uses a button now instead of a NavigationLink
+                            // Let's Go Button
                             Button("Let's Go!") {
                                 // Call firebase
                                 FirebaseInterface.shared.addUser(name: name, groupName: groupName)
@@ -91,8 +89,6 @@ struct ContentView: View {
                     Spacer()
                 }
                 .padding()
-                
-                // We no longer need .navigationDestination as we are not navigating from "this" screen anymore
             }
         }
     }
