@@ -21,6 +21,12 @@ struct HomeView: View {
     
     var body: some View {
         VStack {
+            Text("House Group Dashboard")
+                .fontWeight(.heavy)
+                .font(.system(size: 30))
+                .padding(.top)
+                .padding(.bottom)
+            
             Text("Welcome \(name)!")
                 .font(.title.bold())
             
@@ -28,10 +34,6 @@ struct HomeView: View {
                 .font(.title)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 30)
-            
-            Text("House Group Dashboard")
-                .fontWeight(.heavy)
-                .font(.system(size: 30))
             
             Spacer()
             
@@ -45,20 +47,47 @@ struct HomeView: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }
-
+            .padding(.horizontal)
+            
+            
+            // Only show this button if there is a chore
+            // waiting for approval.
+            if choreToApprove != nil {
+                Button("Pending Approvals") {
+                    // 4. When tapped, show the alert
+                    showApprovalAlert = true
+                }
+                .font(.headline)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.orange) // Different color
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .padding(.top, 10) // Add some space
+                .transition(.scale) // Nice animation
+            }
+            Spacer()
+            
             // Add Chore Button
             Button("Add Chore") {
                 // do stuff
             }
+            .font(.headline)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.green)
+            .foregroundColor(.white)
+            .cornerRadius(10)
             .padding(.horizontal)
-            Spacer()
-            
+            .padding(.top, 10) // Add some space
+            .transition(.scale) // Nice animation
         }
         .padding()
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
         
-        
+
         // Pending Approvals Alert
         .alert(
             "Approval Request", // The title
