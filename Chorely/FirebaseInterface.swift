@@ -28,6 +28,7 @@ class FirebaseInterface {
         self.firestore = Firestore.firestore()
         
         //this signs us in on initialization, but we want to sign in when the user enters their name/password
+        //This code will be removed once signIn is completed.
         Auth.auth().signInAnonymously { authResult, error in
             if let error = error {
                 print("Auth failed: \(error.localizedDescription)")
@@ -37,6 +38,8 @@ class FirebaseInterface {
         }
     }
     
+    //Adds a new user to the repository with the provided properties
+    //TO DO: make it so that the color is different for each user in the group
     func addUser(name: String, groupName: String) {
         print("Attempting to add user: \(name), \(groupName)")
         
@@ -51,5 +54,39 @@ class FirebaseInterface {
                 print("User added successfully!")
             }
         }
+    }
+    
+    //Signs in the user using the given name and password
+    func SignIn(name: String, password: String) {
+        
+    }
+    
+    //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
+    func getChores(){
+        
+    }
+    
+    //Adds a new chore to the repository with the following properties:
+    //name: String with the name
+    //priority: 1 = low, 2 = med, 3 = high. Never type anything that's not these 3 numbers
+    //repetitionTime: how often the chore is repeated (weekly, daily, ect). (To be honest, I don't know how we would represent this)
+    //date: When the chore is due to be done (if not repeated).
+    //description: a string containing the description
+    //assignedTo: the users that the chore is assigned to. Should contain at least one user
+    //isChecklist: whether or not the chore is a checklist chore as opposed to an event/repeating chore. False by default.
+    func addChore(name: String, priority: Int?, repetitionTime: Double?, date: Timestamp, description: String?, assignedTo: Array<UserInfo>, isChecklist: Bool?){
+        
+    }
+    
+    //Marks a chore as complete, also records who did the chore
+    func markComplete(user: UserInfo){
+        
+    }
+    //We need to make a chore log repository for this
+    //Also, for repeating chores, we will need to make it so that the chore is marked as "uncomplete" before it's due again.
+    
+    //We won't implement this until we decide how the chore proposal system should work
+    func getProposedChores(){
+        
     }
 }
