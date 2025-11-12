@@ -27,6 +27,20 @@ struct HomeView: View {
                 .font(.system(size: 30))
             
             Spacer()
+            
+            // Chores Button
+            NavigationLink(destination: ChoresView()) {
+                Text("View Chores")
+                    .font(.headline)
+                    .padding()
+                    .frame(maxWidth: .infinity) // Make it wide
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+            .padding(.horizontal)
+            Spacer()
+            
         }
         .padding()
         .navigationTitle("Home")
