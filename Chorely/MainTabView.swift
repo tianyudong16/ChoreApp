@@ -23,26 +23,19 @@ struct MainTabView: View {
                 }
                 .tag(0)
             
-            // CHORES TAB
-            ChoresView(user: user)
-                .tabItem {
-                    Label("Chores", systemImage: "checkmark.circle.fill")
-                }
-                .tag(1)
-            
             // CALENDAR TAB
             CalendarView(user: user)
                 .tabItem {
                     Label("Calendar", systemImage: "calendar")
                 }
-                .tag(2)
+                .tag(1)
             
             // PROFILE TAB
             ProfileView(user: user)
                 .tabItem {
                     Label("Profile", systemImage: "person.circle.fill")
                 }
-                .tag(3)
+                .tag(2)
         }
         .onAppear {
             startMemberListener()

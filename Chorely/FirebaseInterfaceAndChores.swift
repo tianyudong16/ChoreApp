@@ -24,6 +24,8 @@ extension FirebaseInterface {
             "repetition": chore.repetition,
             "estimatedTime": chore.estimatedTime,
             "description": chore.description,
+            "isPending": chore.isPending,
+            "proposedBy": chore.proposedBy,
             "createdAt": Timestamp()
         ]
         
@@ -74,6 +76,8 @@ extension FirebaseInterface {
                     let repetition = data["repetition"] as? String ?? "none"
                     let estimatedTime = data["estimatedTime"] as? Int ?? 30
                     let description = data["description"] as? String ?? ""
+                    let isPending = data["isPending"] as? Bool ?? false
+                    let proposedBy = data["proposedBy"] as? String ?? ""
                     
                     return ChoreItem(
                         id: id,
@@ -84,7 +88,9 @@ extension FirebaseInterface {
                         dueDate: dueDate,
                         repetition: repetition,
                         estimatedTime: estimatedTime,
-                        description: description
+                        description: description,
+                        isPending: isPending,
+                        proposedBy: proposedBy
                     )
                 }
                 
@@ -139,6 +145,8 @@ extension FirebaseInterface {
                     let repetition = data["repetition"] as? String ?? "none"
                     let estimatedTime = data["estimatedTime"] as? Int ?? 30
                     let description = data["description"] as? String ?? ""
+                    let isPending = data["isPending"] as? Bool ?? false
+                    let proposedBy = data["proposedBy"] as? String ?? ""
                     
                     return ChoreItem(
                         id: id,
@@ -149,11 +157,31 @@ extension FirebaseInterface {
                         dueDate: dueDate,
                         repetition: repetition,
                         estimatedTime: estimatedTime,
-                        description: description
+                        description: description,
+                        isPending: isPending,
+                        proposedBy: proposedBy
                     )
                 }
                 
                 onUpdate(chores)
             }
+    }
+    
+    // MARK: - APPROVE CHORE
+    func approveChore(choreID: String, groupID: String) {
+        db.collection("groups")
+            .document(groupID)
+            .collection("chores")
+            .document(choreID)
+            .updateData(["isPending": false])
+    }
+    
+    // MARK: - DENY/REJECT CHORE
+    func denyChore(choreID: String, groupID: String) {
+        db.collection("groups")
+            .document(groupID)
+            .collection("chores")
+            .document(choreID)
+            .delete()
     }
 }

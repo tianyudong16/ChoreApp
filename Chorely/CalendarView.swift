@@ -15,9 +15,35 @@ struct CalendarView: View {
     @State private var currentMonthOffset = 0
     @State private var viewMode: CalendarViewMode = .group
     @State private var members: [GroupMember] = []
+    @State private var chores: [ChoreItem] = []
     
     enum CalendarViewMode {
         case group, roommate, personal
+    }
+    
+    // Calculate completion count for each member
+    private func completionCount(for member: GroupMember) -> Int {
+        return chores.filter { $0.isCompleted && $0.assignedTo == member.name }.count
+    }
+    
+    // Calculate total assigned chores for each member
+    private func assignedCount(for member: GroupMember) -> Int {
+        return chores.filter { $0.assignedTo == member.name && !$0.isPending }.count
+    }
+    
+    // Calculate completion percentage
+    private func completionPercentage(for member: GroupMember) -> Double {
+        let assigned = assignedCount(for: member)
+        if assigned == 0 { return 0.0 }
+        let completed = completionCount(for: member)
+        return Double(completed) / Double(assigned)
+    }
+    
+    // Check if member completed all chores
+    private func isFullyComplete(for member: GroupMember) -> Bool {
+        let assigned = assignedCount(for: member)
+        if assigned == 0 { return false }
+        return completionCount(for: member) == assigned
     }
     
     var body: some View {
@@ -25,7 +51,7 @@ struct CalendarView: View {
             VStack(spacing: 0) {
                 
                 // MARK: - CALENDAR TITLE
-                Text("CALENDAR")
+                Text("Calendar")
                     .font(.title2.bold())
                     .padding(.top, 20)
                     .padding(.bottom, 10)
@@ -120,6 +146,7 @@ struct CalendarView: View {
             .navigationBarHidden(true)
             .onAppear {
                 loadGroupMembers()
+                loadChores()
             }
         }
     }
@@ -129,6 +156,15 @@ struct CalendarView: View {
         FirebaseInterface.shared.listenToGroupMembers(groupID: user.groupID) { updatedMembers in
             DispatchQueue.main.async {
                 self.members = updatedMembers
+            }
+        }
+    }
+    
+    // MARK: - LOAD CHORES
+    private func loadChores() {
+        FirebaseInterface.shared.listenToChores(groupID: user.groupID) { updatedChores in
+            DispatchQueue.main.async {
+                self.chores = updatedChores
             }
         }
     }
@@ -192,6 +228,11 @@ struct CalendarView: View {
             
             VStack(spacing: 12) {
                 ForEach(members) { member in
+                    let completions = completionCount(for: member)
+                    let assigned = assignedCount(for: member)
+                    let percentage = completionPercentage(for: member)
+                    let isComplete = isFullyComplete(for: member)
+                    
                     HStack(spacing: 12) {
                         // User indicator circle
                         Circle()
@@ -208,26 +249,39 @@ struct CalendarView: View {
                             .font(.body)
                             .frame(width: 70, alignment: .leading)
                         
-                        // Progress bar (placeholder - will be calculated from actual chores later)
+                        // Progress bar (percentage-based)
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {
                                 // Background
                                 RoundedRectangle(cornerRadius: 4)
                                     .fill(Color.gray.opacity(0.2))
                                 
-                                // Progress (placeholder value)
+                                // Progress (percentage of assigned chores)
                                 RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.fromData(member.colorData))
-                                    .frame(width: geometry.size.width * 0.6)
+                                    .fill(isComplete ? Color.green : Color.fromData(member.colorData))
+                                    .frame(width: geometry.size.width * percentage)
                             }
                         }
                         .frame(height: 8)
                         
-                        // Count (placeholder)
-                        Text("6")
-                            .font(.caption.bold())
-                            .foregroundColor(.gray)
-                            .frame(width: 20)
+                        // Completion fraction and checkmark
+                        HStack(spacing: 4) {
+                            Text("\(completions)/\(assigned)")
+                                .font(.caption.bold())
+                                .foregroundColor(.gray)
+                                .frame(width: 35, alignment: .trailing)
+                            
+                            if isComplete && assigned > 0 {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 16))
+                            } else {
+                                // Empty space to maintain alignment
+                                Color.clear
+                                    .frame(width: 16, height: 16)
+                            }
+                        }
+                        .frame(width: 55)
                     }
                 }
             }

@@ -3,7 +3,7 @@
 //  Chorely
 //
 //  Created by Brooke Tanner on 11/11/25.
-//  Edited by Tian Yu Dong on 11/12/25
+//
 
 import SwiftUI
 
@@ -13,7 +13,22 @@ struct ChoresView: View {
     let selectedDate: Date?
     
     @State private var showNewChoreSheet = false
+    @State private var showFilterSheet = false
     @State private var chores: [ChoreItem] = []
+    @State private var members: [GroupMember] = []
+    
+    // Filter states
+    @State private var filterOption: FilterOption = .all
+    
+    enum FilterOption: String, CaseIterable {
+        case all = "All Tasks"
+        case completed = "Completed"
+        case uncompleted = "Uncompleted"
+        case daily = "Daily Tasks"
+        case priorityLow = "Low Priority"
+        case priorityMedium = "Medium Priority"
+        case priorityHigh = "High Priority"
+    }
     
     // 1. Init for HomeView (takes no date)
     init(user: UserInfo) {
@@ -35,55 +50,129 @@ struct ChoresView: View {
         }
     }
     
+    // Filtered chores based on selected filter
+    private var filteredChores: [ChoreItem] {
+        switch filterOption {
+        case .all:
+            return chores
+        case .completed:
+            return chores.filter { $0.isCompleted }
+        case .uncompleted:
+            return chores.filter { !$0.isCompleted }
+        case .daily:
+            return chores.filter { $0.repetition == "daily" }
+        case .priorityLow:
+            return chores.filter { $0.priority == 1 }
+        case .priorityMedium:
+            return chores.filter { $0.priority == 2 }
+        case .priorityHigh:
+            return chores.filter { $0.priority == 3 }
+        }
+    }
+    
     var body: some View {
-        NavigationStack {
-            VStack {
-                
-                if chores.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        Text("No chores yet")
-                            .font(.title3)
-                            .foregroundColor(.gray)
-                        Text("Tap + to add your first chore")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.top, 60)
-                } else {
-                    List {
-                        ForEach(chores) { chore in
-                            choreRow(chore)
-                        }
-                        .onDelete(perform: deleteChores)
-                    }
-                    .listStyle(.insetGrouped)
-                }
+        VStack(spacing: 0) {
+            
+            // MARK: - HEADER
+            HStack {
+                Text("Chores")
+                    .font(.title2.bold())
                 
                 Spacer()
                 
+                Button {
+                    showFilterSheet = true
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
             }
-            .navigationTitle(navigationTitle)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showNewChoreSheet = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
+            .padding(.horizontal)
+            .padding(.top, 20)
+            .padding(.bottom, 10)
+            
+            // MARK: - FILTER BADGE
+            if filterOption != .all {
+                HStack {
+                    Text("Filtered by: \(filterOption.rawValue)")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                    
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+            
+            if filteredChores.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 60))
+                        .foregroundColor(.gray)
+                    Text(filterOption == .all ? "No chores yet" : "No chores match this filter")
+                        .font(.title3)
+                        .foregroundColor(.gray)
+                    if filterOption == .all {
+                        Text("Tap 'Add Chore' to create your first chore")
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
                 }
-            }
-            .sheet(isPresented: $showNewChoreSheet) {
-                AddChoreSheet(user: user) { newChore in
-                    chores.append(newChore)
-                    saveChoreToFirebase(newChore)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(filteredChores) { chore in
+                        choreRow(chore)
+                    }
+                    .onDelete(perform: deleteChores)
                 }
+                .listStyle(.insetGrouped)
             }
-            .onAppear {
-                loadChores()
+            
+            // MARK: - ADD CHORE BUTTON AT BOTTOM
+            Button {
+                showNewChoreSheet = true
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                    Text("Add Chore")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .padding()
+            
+        }
+        .sheet(isPresented: $showNewChoreSheet) {
+            AddChoreSheet(user: user) { newChore in
+                chores.append(newChore)
+                saveChoreToFirebase(newChore)
+            }
+        }
+        .sheet(isPresented: $showFilterSheet) {
+            FilterSheet(selectedFilter: $filterOption)
+        }
+        .onAppear {
+            loadChores()
+            loadMembers()
+        }
+    }
+    
+    // MARK: - LOAD MEMBERS
+    private func loadMembers() {
+        FirebaseInterface.shared.listenToGroupMembers(groupID: user.groupID) { updatedMembers in
+            DispatchQueue.main.async {
+                self.members = updatedMembers
             }
         }
     }
@@ -94,7 +183,8 @@ struct ChoresView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let fetchedChores):
-                    self.chores = fetchedChores
+                    // Filter out pending chores - they only show in Home pending approvals
+                    self.chores = fetchedChores.filter { !$0.isPending }
                 case .failure(let error):
                     print("Error loading chores: \(error)")
                 }
@@ -117,15 +207,18 @@ struct ChoresView: View {
     // MARK: - DELETE CHORES
     private func deleteChores(at offsets: IndexSet) {
         for index in offsets {
-            let chore = chores[index]
+            let chore = filteredChores[index]
             FirebaseInterface.shared.deleteChore(choreID: chore.id.uuidString, groupID: user.groupID)
+            chores.removeAll { $0.id == chore.id }
         }
-        chores.remove(atOffsets: offsets)
     }
     
     // MARK: - CHORE ROW
     @ViewBuilder
     func choreRow(_ chore: ChoreItem) -> some View {
+        let assignedMember = members.first(where: { $0.name == chore.assignedTo })
+        let backgroundColor = assignedMember != nil ? Color.fromData(assignedMember!.colorData).opacity(0.15) : Color(.systemGray6)
+        
         HStack {
             Button {
                 toggleChoreCompletion(chore)
@@ -141,9 +234,16 @@ struct ChoresView: View {
                     .strikethrough(chore.isCompleted)
                 
                 if !chore.assignedTo.isEmpty {
-                    Text("Assigned to: \(chore.assignedTo)")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                    HStack(spacing: 6) {
+                        if let member = assignedMember {
+                            Circle()
+                                .fill(Color.fromData(member.colorData))
+                                .frame(width: 12, height: 12)
+                        }
+                        Text("Assigned to: \(chore.assignedTo)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
                 
                 Text("Priority: \(chore.priorityName)")
@@ -162,6 +262,9 @@ struct ChoresView: View {
                 }
             }
         }
+        .padding()
+        .background(backgroundColor)
+        .cornerRadius(10)
     }
     
     // MARK: - TOGGLE COMPLETION
@@ -191,6 +294,8 @@ struct ChoreItem: Identifiable, Codable {
     var repetition: String // "none", "daily", "weekly", "monthly"
     var estimatedTime: Int // in minutes
     var description: String
+    var isPending: Bool // NEW: For approval system
+    var proposedBy: String // NEW: Who proposed this chore
     
     init(
         id: UUID = UUID(),
@@ -201,7 +306,9 @@ struct ChoreItem: Identifiable, Codable {
         dueDate: Date? = nil,
         repetition: String = "none",
         estimatedTime: Int = 30,
-        description: String = ""
+        description: String = "",
+        isPending: Bool = false,
+        proposedBy: String = ""
     ) {
         self.id = id
         self.name = name
@@ -212,6 +319,8 @@ struct ChoreItem: Identifiable, Codable {
         self.repetition = repetition
         self.estimatedTime = estimatedTime
         self.description = description
+        self.isPending = isPending
+        self.proposedBy = proposedBy
     }
     
     var priorityName: String {
@@ -243,6 +352,7 @@ struct AddChoreSheet: View {
     @State private var description = ""
     @State private var hasDueDate = false
     @State private var dueDate = Date()
+    @State private var assignToHouse = false // NEW: Toggle for house assignment
     
     var body: some View {
         NavigationStack {
@@ -259,7 +369,16 @@ struct AddChoreSheet: View {
                 }
                 
                 Section("Assignment") {
-                    TextField("Assigned to (leave blank for shared)", text: $assignedTo)
+                    Toggle("Assign to House (Requires Approval)", isOn: $assignToHouse)
+                        .tint(.blue)
+                    
+                    if !assignToHouse {
+                        TextField("Assigned to (leave blank for shared)", text: $assignedTo)
+                    } else {
+                        Text("This chore will be proposed to all house members for approval")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
                 
                 Section("Schedule") {
@@ -295,17 +414,62 @@ struct AddChoreSheet: View {
                         let newChore = ChoreItem(
                             name: name,
                             priority: priority,
-                            assignedTo: assignedTo,
+                            assignedTo: assignToHouse ? "" : assignedTo,
                             isCompleted: false,
                             dueDate: hasDueDate ? dueDate : nil,
                             repetition: repetition,
                             estimatedTime: estimatedTime,
-                            description: description
+                            description: description,
+                            isPending: assignToHouse, // Mark as pending if assigned to house
+                            proposedBy: user.name // Track who proposed it
                         )
                         onAdd(newChore)
                         dismiss()
                     }
                     .disabled(name.isEmpty)
+                }
+            }
+        }
+    }
+}
+
+//
+// MARK: - FILTER SHEET
+//
+
+struct FilterSheet: View {
+    @Environment(\.dismiss) var dismiss
+    @Binding var selectedFilter: ChoresView.FilterOption
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Filter Options") {
+                    ForEach(ChoresView.FilterOption.allCases, id: \.self) { option in
+                        Button {
+                            selectedFilter = option
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(option.rawValue)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                if selectedFilter == option {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Filter Chores")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
         }

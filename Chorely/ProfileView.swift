@@ -38,6 +38,13 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     
+                    // MARK: - TITLE
+                    Text("Profile")
+                        .font(.title2.bold())
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
+                    
                     // MARK: - PROFILE HEADER
                     VStack(spacing: 15) {
                         

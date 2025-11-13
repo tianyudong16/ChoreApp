@@ -12,6 +12,9 @@ struct HomeView: View {
     let user: UserInfo
     let members: [GroupMember]
     
+    @State private var todaysChores: [ChoreItem] = []
+    @State private var pendingApprovals: [ChoreItem] = []
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -64,7 +67,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
                         
-                        // MARK: - TODAY'S CHORES
+                        // MARK: - TODAY'S CHORES COUNT
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "checklist")
@@ -72,7 +75,7 @@ struct HomeView: View {
                                 Text("Today's Chores")
                                     .font(.headline)
                                 Spacer()
-                                Text("3")
+                                Text("\(todaysChores.count)")
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
@@ -83,11 +86,14 @@ struct HomeView: View {
                             }
                             .padding(.horizontal)
                             
-                            // Sample chores
-                            VStack(spacing: 8) {
-                                todayChoreRow(name: "Taking Out Trash", isCompleted: false, assignee: "Emily")
+                            if !todaysChores.isEmpty {
+                                VStack(spacing: 8) {
+                                    ForEach(todaysChores.prefix(3)) { chore in
+                                        todayChoreRow(chore: chore)
+                                    }
+                                }
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
                         }
                         
                         // MARK: - PENDING APPROVALS
@@ -98,7 +104,7 @@ struct HomeView: View {
                                 Text("Pending Approvals")
                                     .font(.headline)
                                 Spacer()
-                                Text("1")
+                                Text("\(pendingApprovals.count)")
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
@@ -109,36 +115,14 @@ struct HomeView: View {
                             }
                             .padding(.horizontal)
                             
-                            // Sample pending approval
-                            pendingApprovalRow(
-                                choreName: "Clean Bathroom",
-                                requester: "Housemate 2",
-                                onApprove: {
-                                    // Approve action
-                                },
-                                onDeny: {
-                                    // Deny action
+                            if !pendingApprovals.isEmpty {
+                                VStack(spacing: 8) {
+                                    ForEach(pendingApprovals.prefix(3)) { approval in
+                                        pendingApprovalRow(approval: approval)
+                                    }
                                 }
-                            )
-                            .padding(.horizontal)
-                        }
-                        
-                        // MARK: - ADD CHORE BUTTON
-                        NavigationLink {
-                            ChoresView(user: user)
-                        } label: {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                Text("Add Chore")
-                                    .fontWeight(.semibold)
+                                .padding(.horizontal)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                            .padding(.horizontal)
                         }
                         
                         Spacer(minLength: 20)
@@ -146,6 +130,63 @@ struct HomeView: View {
                 }
             }
             .navigationBarHidden(true)
+            .onAppear {
+                loadTodaysChores()
+            }
+        }
+    }
+    
+    // MARK: - LOAD TODAY'S CHORES
+    private func loadTodaysChores() {
+        FirebaseInterface.shared.fetchChores(groupID: user.groupID) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let chores):
+                    // Filter for today's date or daily chores
+                    let calendar = Calendar.current
+                    let today = Date()
+                    
+                    self.todaysChores = chores.filter { chore in
+                        if chore.isPending { return false } // Exclude pending
+                        if let dueDate = chore.dueDate {
+                            return calendar.isDate(dueDate, inSameDayAs: today)
+                        }
+                        return chore.repetition == "daily"
+                    }
+                    
+                    // Pending approvals are chores where isPending = true
+                    self.pendingApprovals = chores.filter { $0.isPending }
+                    
+                case .failure(let error):
+                    print("Error loading chores: \(error)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - APPROVE CHORE
+    private func approveChore(_ chore: ChoreItem) {
+        FirebaseInterface.shared.approveChore(choreID: chore.id.uuidString, groupID: user.groupID)
+        
+        // Remove from pending list immediately for UI feedback
+        pendingApprovals.removeAll { $0.id == chore.id }
+        
+        // Reload all chores after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            loadTodaysChores()
+        }
+    }
+    
+    // MARK: - DENY CHORE
+    private func denyChore(_ chore: ChoreItem) {
+        FirebaseInterface.shared.denyChore(choreID: chore.id.uuidString, groupID: user.groupID)
+        
+        // Remove from pending list immediately for UI feedback
+        pendingApprovals.removeAll { $0.id == chore.id }
+        
+        // Reload all chores after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            loadTodaysChores()
         }
     }
     
@@ -190,42 +231,46 @@ struct HomeView: View {
     
     // MARK: - PENDING APPROVAL ROW
     @ViewBuilder
-    func pendingApprovalRow(
-        choreName: String,
-        requester: String,
-        onApprove: @escaping () -> Void,
-        onDeny: @escaping () -> Void
-    ) -> some View {
+    func pendingApprovalRow(approval: ChoreItem) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(choreName)
+                    Text(approval.name)
                         .font(.body.weight(.medium))
-                    Text("Requested by \(requester)")
+                    Text("Proposed by \(approval.proposedBy)")
                         .font(.caption)
                         .foregroundColor(.gray)
+                    
+                    // Show chore details
+                    HStack(spacing: 8) {
+                        Label("\(approval.priorityName)", systemImage: "exclamationmark.circle")
+                            .font(.caption2)
+                        Label("\(approval.estimatedTime)min", systemImage: "clock")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.secondary)
                 }
                 
                 Spacer()
             }
             
             HStack(spacing: 12) {
-                Button(action: onApprove) {
+                Button(action: { approveChore(approval) }) {
                     Text("Approve")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                         .background(Color.green)
                         .cornerRadius(8)
                 }
                 
-                Button(action: onDeny) {
+                Button(action: { denyChore(approval) }) {
                     Text("Deny")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                         .background(Color.red)
                         .cornerRadius(8)
                 }
@@ -240,77 +285,20 @@ struct HomeView: View {
     
     // MARK: - TODAY CHORE ROW
     @ViewBuilder
-    func todayChoreRow(name: String, isCompleted: Bool, assignee: String) -> some View {
+    func todayChoreRow(chore: ChoreItem) -> some View {
         HStack {
-            Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+            Image(systemName: chore.isCompleted ? "checkmark.circle.fill" : "circle")
                 .font(.title2)
-                .foregroundColor(isCompleted ? .green : .gray)
+                .foregroundColor(chore.isCompleted ? .green : .gray)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(name)
+                Text(chore.name)
                     .font(.body.weight(.medium))
-                Text(assignee)
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            
-            Spacer()
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.systemGray6))
-        )
-    }
-}
-
-// MARK: - DAILY TASKS VIEW (Replaces ChoreLogView)
-struct DailyTasksView: View {
-    let user: UserInfo
-    
-    @State private var tasks: [TaskItem] = [
-        TaskItem(name: "Taking Out Trash", isCompleted: false, assignee: "Emily"),
-        TaskItem(name: "Dishes", isCompleted: true, assignee: "Housemate 2")
-    ]
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            Text("Daily Tasks")
-                .font(.title2.bold())
-                .padding(.top, 20)
-                .padding(.bottom, 10)
-            
-            ScrollView {
-                VStack(spacing: 12) {
-                    ForEach(tasks) { task in
-                        taskRow(task)
-                    }
+                if !chore.assignedTo.isEmpty {
+                    Text(chore.assignedTo)
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
-                .padding()
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-    }
-    
-    @ViewBuilder
-    func taskRow(_ task: TaskItem) -> some View {
-        HStack {
-            Button {
-                // Toggle completion
-            } label: {
-                Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundColor(task.isCompleted ? .green : .gray)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(task.name)
-                    .font(.body.weight(.medium))
-                    .strikethrough(task.isCompleted)
-                Text(task.assignee)
-                    .font(.caption)
-                    .foregroundColor(.gray)
             }
             
             Spacer()
@@ -321,13 +309,6 @@ struct DailyTasksView: View {
                 .fill(Color(.systemGray6))
         )
     }
-}
-
-struct TaskItem: Identifiable {
-    let id = UUID()
-    var name: String
-    var isCompleted: Bool
-    var assignee: String
 }
 
 #Preview {
@@ -349,13 +330,13 @@ struct TaskItem: Identifiable {
             ),
             GroupMember(
                 uid: "2",
-                name: "Housemate 2",
+                name: "Alex",
                 photoURL: "",
                 colorData: UIColor.systemBlue.toData() ?? Data()
             ),
             GroupMember(
                 uid: "3",
-                name: "Housemate 3",
+                name: "Jordan",
                 photoURL: "",
                 colorData: UIColor.systemGreen.toData() ?? Data()
             )

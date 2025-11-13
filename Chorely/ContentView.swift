@@ -29,31 +29,35 @@ struct ContentView: View {
     @State private var loggedInUser: UserInfo? = nil
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 25) {
-                
-                Text("Chorely")
-                    .font(.largeTitle.bold())
-                    .padding(.top, 40)
-                
-                if loggedInUser == nil {
-                    if isRegistering {
-                        registrationView
-                    } else {
-                        loginView
-                    }
+        VStack(spacing: 25) {
+            
+            // Remove Chorely title - let the view speak for itself
+            if loggedInUser == nil {
+                if isRegistering {
+                    Text("Sign Up")
+                        .font(.largeTitle.bold())
+                        .padding(.top, 40)
+                        .padding(.bottom, 100)
+                    registrationView
                 } else {
-                    MainTabView(user: loggedInUser!)
+                    Text("Welcome to Chorely!")
+                        .font(.largeTitle.bold())
+                        .padding(.top, 100)
+                        .padding(.bottom, 100)
+                    
+                    loginView
                 }
-                
-                Spacer()
+            } else {
+                MainTabView(user: loggedInUser!)
             }
-            .padding()
-            .alert("Error", isPresented: $showError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(errorMessage)
-            }
+            
+            Spacer()
+        }
+        .padding()
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
         }
     }
 }
@@ -131,7 +135,6 @@ extension ContentView {
     
     var registrationView: some View {
         VStack(spacing: 18) {
-            
             TextField("Your Name", text: $regName)
                 .textFieldStyle(.roundedBorder)
             
