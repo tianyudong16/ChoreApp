@@ -7,10 +7,26 @@
 
 import SwiftUI
 
+// Identifies all group members
+struct Member: Identifiable {
+    let id = UUID()
+    let name: String
+    let color: Color
+}
+
 // Home Screen
 struct HomeView: View {
     var name: String
     var groupName: String
+    
+    // Sample group members
+    @State private var members = [
+        Member(name: "Emily", color: .pink),
+        Member(name: "Housemate 2", color: .blue),
+        Member(name: "Housemate 3", color: .green),
+        Member(name: "Housemate 4", color: .orange)
+    ]
+    
     
     @State private var showApprovalAlert = false
     
@@ -34,6 +50,41 @@ struct HomeView: View {
                 .font(.title)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 30)
+            
+            // Scrollable view for all the group members
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(members) { member in
+                        HStack {
+                            Image(systemName: "person.crop.circle.fill")
+                                .foregroundColor(.white)
+                                .padding(.leading)
+                            
+                            Text(member.name)
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 10)
+                            
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .background(member.color)
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.black, lineWidth: 3)
+                )
+                .padding(.horizontal)
+                // Add a little extra top padding inside the ScrollView
+                .padding(.top, 6)
+                .padding(.bottom, 6)
+            }
+            .frame(height: 250)
+
             
             Spacer()
             
