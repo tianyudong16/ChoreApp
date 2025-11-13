@@ -14,6 +14,7 @@ struct CalendarView: View {
     @State private var selectedDate: Date = Date()
     @State private var currentMonthOffset = 0
     @State private var viewMode: CalendarViewMode = .group
+    @State private var members: [GroupMember] = []
     
     enum CalendarViewMode {
         case group, roommate, personal
@@ -101,23 +102,34 @@ struct CalendarView: View {
                                 .font(.headline)
                                 .padding(.horizontal)
                             
-                            VStack(spacing: 10) {
-                                weeklyStatsCard(
-                                    members: [
-                                        ("Emily", 8, Color(uiColor: .systemPink)),
-                                        ("Alex", 6, Color(uiColor: .systemBlue)),
-                                        ("Jordan", 7, Color(uiColor: .systemGreen)),
-                                        ("Sam", 5, Color(uiColor: .systemOrange))
-                                    ]
-                                )
+                            if members.isEmpty {
+                                Text("Loading members...")
+                                    .foregroundColor(.gray)
+                                    .padding()
+                            } else {
+                                VStack(spacing: 10) {
+                                    weeklyStatsCard()
+                                }
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
                         }
                         .padding(.bottom, 20)
                     }
                 }
             }
             .navigationBarHidden(true)
+            .onAppear {
+                loadGroupMembers()
+            }
+        }
+    }
+    
+    // MARK: - LOAD GROUP MEMBERS
+    private func loadGroupMembers() {
+        FirebaseInterface.shared.listenToGroupMembers(groupID: user.groupID) { updatedMembers in
+            DispatchQueue.main.async {
+                self.members = updatedMembers
+            }
         }
     }
     
@@ -173,46 +185,46 @@ struct CalendarView: View {
     
     // MARK: - WEEKLY STATS CARD
     @ViewBuilder
-    func weeklyStatsCard(members: [(String, Int, Color)]) -> some View {
+    func weeklyStatsCard() -> some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Completion Level")
                 .font(.subheadline.bold())
             
             VStack(spacing: 12) {
-                ForEach(members, id: \.0) { member in
+                ForEach(members) { member in
                     HStack(spacing: 12) {
                         // User indicator circle
                         Circle()
-                            .fill(member.2)
+                            .fill(Color.fromData(member.colorData))
                             .frame(width: 30, height: 30)
                             .overlay(
-                                Text(String(member.0.prefix(1)))
+                                Text(String(member.name.prefix(1)))
                                     .font(.caption.bold())
                                     .foregroundColor(.white)
                             )
                         
                         // Name
-                        Text(member.0)
+                        Text(member.name)
                             .font(.body)
                             .frame(width: 70, alignment: .leading)
                         
-                        // Progress bar
+                        // Progress bar (placeholder - will be calculated from actual chores later)
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {
                                 // Background
                                 RoundedRectangle(cornerRadius: 4)
                                     .fill(Color.gray.opacity(0.2))
                                 
-                                // Progress
+                                // Progress (placeholder value)
                                 RoundedRectangle(cornerRadius: 4)
-                                    .fill(member.2)
-                                    .frame(width: geometry.size.width * (CGFloat(member.1) / 10.0))
+                                    .fill(Color.fromData(member.colorData))
+                                    .frame(width: geometry.size.width * 0.6)
                             }
                         }
                         .frame(height: 8)
                         
-                        // Count
-                        Text("\(member.1)")
+                        // Count (placeholder)
+                        Text("6")
                             .font(.caption.bold())
                             .foregroundColor(.gray)
                             .frame(width: 20)

@@ -22,6 +22,10 @@ struct ProfileView: View {
     @State private var showJoinAlert = false
     @State private var showLeaveAlert = false
     @State private var showAboutGroup = false
+    @State private var showLogoutAlert = false
+    
+    // Add environment to dismiss the view hierarchy
+    @Environment(\.dismiss) private var dismiss
     
     init(user: UserInfo) {
         _user = State(initialValue: user)
@@ -184,7 +188,7 @@ struct ProfileView: View {
                             showDisclosure: false,
                             titleColor: .red
                         ) {
-                            signOut()
+                            showLogoutAlert = true
                         }
                     }
                     .background(Color(.systemBackground))
@@ -205,6 +209,14 @@ struct ProfileView: View {
                 Button("Cancel", role: .cancel, action: {})
             } message: {
                 Text("Are you sure you want to leave your group?")
+            }
+            .alert("Log Out", isPresented: $showLogoutAlert) {
+                Button("Log Out", role: .destructive) {
+                    signOut()
+                }
+                Button("Cancel", role: .cancel, action: {})
+            } message: {
+                Text("Are you sure you want to log out?")
             }
             .sheet(isPresented: $showAboutGroup) {
                 aboutGroupSheet()
@@ -326,7 +338,13 @@ struct ProfileView: View {
     }
     
     private func signOut() {
-        try? Auth.auth().signOut()
+        do {
+            try Auth.auth().signOut()
+            // Exit the entire app navigation to return to login
+            exit(0)
+        } catch {
+            print("Error signing out: \(error)")
+        }
     }
 }
 

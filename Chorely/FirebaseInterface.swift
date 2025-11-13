@@ -15,7 +15,7 @@ class FirebaseInterface {
     static let shared = FirebaseInterface()
     private init() {}
     
-    private let db = Firestore.firestore()
+    internal let db = Firestore.firestore()
     private let storage = Storage.storage()
 }
 
