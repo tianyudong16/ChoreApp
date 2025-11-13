@@ -57,9 +57,37 @@ class FirebaseInterface {
     }
     
     //Signs in the user using the given name and password
-    func SignIn(name: String, password: String) {
-        
+    func signIn(name: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
+        auth.signIn(withEmail: <#T##String#>, password: <#T##String#>){result, error in
+            if let error = error{
+                completion(.failure(error))
+            } else if let user = result?.user {
+                completion(.success(user))
+            }
+        }
     }
+    
+    //Note: we will need to add this functionality to addUser, and change the surrounding code of the ContentView page to support error catching.
+    func signUp(name: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
+        auth.createUser(withEmail: <#T##String#>, password: <#T##String#>){result, error in
+            if let error = error{
+                completion(.failure(error))
+            } else if let user = result?.user {
+                completion(.success(user))
+            }
+        }
+    }
+    
+    func signOut() {
+        do {
+            try auth.signOut()
+            print("successful sign-out")
+        } catch {
+            print("error signing out :(")
+        }
+    }
+    
+    //TO DO: add functions that let a user change their password, name, and other attributes.
     
     //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
     func getChores(){
