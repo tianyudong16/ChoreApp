@@ -26,18 +26,14 @@ struct MainTabView: View {
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(0)
             
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
-                .tag(1)
-            
             CalendarView()
                 .tabItem { Label("Calendar", systemImage: "calendar") }
-                .tag(2)
+                .tag(1)
             
             ProfileView()
                 .tabItem{
                     Label("Profile", systemImage:"person.crop.circle")}
-                .tag(3)
+                .tag(2)
                 
         }
         .tint(.green) // tint for selected screen
