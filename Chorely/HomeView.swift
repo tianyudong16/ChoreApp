@@ -7,13 +7,42 @@
 
 import SwiftUI
 
+// Identifies all group members
+struct Member: Identifiable {
+    let id = UUID()
+    let name: String
+    let color: Color
+}
+
 // Home Screen
 struct HomeView: View {
     var name: String
     var groupName: String
     
+    // Sample group members
+    @State private var members = [
+        Member(name: "Emily", color: .pink),
+        Member(name: "Housemate 2", color: .blue),
+        Member(name: "Housemate 3", color: .green),
+        Member(name: "Housemate 4", color: .orange)
+    ]
+    
+    
+    @State private var showApprovalAlert = false
+    
+    // State to hold the chore that needs approval
+    // In a real app, you would fetch this from Firebase
+    // when the view appears.
+    @State private var choreToApprove: String? = "Wash the dishes" // Sample chore
+    
     var body: some View {
         VStack {
+            Text("House Group Dashboard")
+                .fontWeight(.heavy)
+                .font(.system(size: 30))
+                .padding(.top)
+                .padding(.bottom)
+            
             Text("Welcome \(name)!")
                 .font(.title.bold())
             
@@ -22,9 +51,40 @@ struct HomeView: View {
                 .foregroundColor(.secondary)
                 .padding(.bottom, 30)
             
-            Text("House Group Dashboard")
-                .fontWeight(.heavy)
-                .font(.system(size: 30))
+            // Scrollable view for all the group members
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(members) { member in
+                        HStack {
+                            Image(systemName: "person.crop.circle.fill")
+                                .foregroundColor(.white)
+                                .padding(.leading)
+                            
+                            Text(member.name)
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 10)
+                            
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .background(member.color)
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.black, lineWidth: 3)
+                )
+                .padding(.horizontal)
+                // Add a little extra top padding inside the ScrollView
+                .padding(.top, 6)
+                .padding(.bottom, 6)
+            }
+            .frame(height: 250)
+
             
             Spacer()
             
@@ -39,12 +99,93 @@ struct HomeView: View {
                     .cornerRadius(10)
             }
             .padding(.horizontal)
+            
+            
+            // Only show this button if there is a chore
+            // waiting for approval.
+            if choreToApprove != nil {
+                Button("Pending Approvals") {
+                    // 4. When tapped, show the alert
+                    showApprovalAlert = true
+                }
+                .font(.headline)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.orange) // Different color
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .padding(.top, 10) // Add some space
+                .transition(.scale) // Nice animation
+            }
             Spacer()
             
+            // Add Chore Button
+            Button("Add Chore") {
+                // do stuff
+            }
+            .font(.headline)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.green)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+            .padding(.horizontal)
+            .padding(.top, 10) // Add some space
+            .transition(.scale) // Nice animation
         }
         .padding()
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
+        
+
+        // Pending Approvals Alert
+        .alert(
+            "Approval Request", // The title
+            isPresented: $showApprovalAlert,
+            presenting: choreToApprove // pass in chore name
+        ) { choreName in
+            // Defining alert actions
+            
+            // "Approve" Button
+            Button("Approve") {
+                // Put your approval logic here
+                print("Approved \(choreName)!")
+                // e.g., FirebaseInterface.shared.approveTask(choreName)
+                
+                // After approving, clear the chore so the button hides
+                withAnimation {
+                    choreToApprove = nil
+                }
+            }
+            
+            // "Deny" Button
+            Button("Deny", role: .destructive) {
+                print("Denied \(choreName)!")
+                // e.g., FirebaseInterface.shared.denyTask(choreName)
+                
+                // After denying, clear the chore so the button hides
+                withAnimation {
+                    choreToApprove = nil
+                }
+            }
+            
+            // "Cancel" Button
+            Button("Cancel", role: .cancel) {
+                // Alert just closes, chore is still pending
+            }
+            
+        } message: { choreName in
+            // The dynamic message for the alert
+            Text("A group member has requested approval for: \"\(choreName)\". Do you approve?")
+        }
+        
+        .onAppear {
+            // In a real app, you would fetch pending chores here
+            // e.g., FirebaseInterface.shared.fetchPendingChore { chore in
+            //    self.choreToApprove = chore
+            // }
+        }
     }
 }
 
