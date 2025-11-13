@@ -14,7 +14,7 @@ import Foundation
 
 extension Date {
     
-    /// Returns all days of the month for this date
+    //Return all the days for the month of the given date
     func extractMonthDates() -> [Date] {
         let calendar = Calendar.current
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: self))!
@@ -25,19 +25,19 @@ extension Date {
         }
     }
     
-    /// Month name + year (e.g., "January 2025")
+    //Month name + year
     func monthYearString() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "LLLL yyyy"
         return formatter.string(from: self)
     }
-    
-    /// Returns true if this date is today
+
+    //Returns true if this date the current day
     func isSameDay(as other: Date) -> Bool {
         Calendar.current.isDate(self, inSameDayAs: other)
     }
     
-    /// Returns the first weekday index (1 = Sunday, 2 = Monday...)
+    //Returns the first weekday index (1=Sunday, 2=monday, ect)
     func firstWeekdayOfMonth() -> Int {
         let calendar = Calendar.current
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: self))!

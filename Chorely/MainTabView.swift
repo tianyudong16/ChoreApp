@@ -16,21 +16,21 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             
-            // HOME TAB
+            //home tab
             HomeView(user: user, members: members)
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
             
-            // CALENDAR TAB
+            //calendar tab
             CalendarView(user: user)
                 .tabItem {
                     Label("Calendar", systemImage: "calendar")
                 }
                 .tag(1)
             
-            // PROFILE TAB
+            //profile tab
             ProfileView(user: user)
                 .tabItem {
                     Label("Profile", systemImage: "person.circle.fill")
@@ -42,7 +42,7 @@ struct MainTabView: View {
         }
     }
     
-    // MARK: - Listen to group members
+    //Listen to group members
     private func startMemberListener() {
         FirebaseInterface.shared.listenToGroupMembers(
             groupID: user.groupID

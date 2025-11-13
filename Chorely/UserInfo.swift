@@ -19,12 +19,12 @@ struct UserInfo: Identifiable, Codable {
     var photoURL: String
     var colorData: Data   // UIColor archived as Data
     
-    // Convert stored Data → Color
+    // Convert stored Data -> Color
     var color: Color {
         return Color.fromData(colorData)
     }
     
-    // Convert stored Data → CGColor
+    // Convert stored Data -> CGColor
     var cgColor: CGColor {
         if let cg = colorData.toCGColor() {
             return cg
@@ -32,7 +32,6 @@ struct UserInfo: Identifiable, Codable {
         return UIColor.gray.cgColor
     }
     
-    // --- THIS IS THE FIX ---
     // Added a memberwise init so we can create this object for previews
     init(uid: String, name: String, email: String, groupID: String, photoURL: String, colorData: Data) {
         self.uid = uid
@@ -42,7 +41,6 @@ struct UserInfo: Identifiable, Codable {
         self.photoURL = photoURL
         self.colorData = colorData
     }
-    // --- END FIX ---
 }
 
 extension UserInfo {
@@ -61,7 +59,6 @@ extension UserInfo {
             self.colorData = colorData
         } else {
             // Default to pink
-            // --- FIX ---
             // Must archive a UIColor
             self.colorData = (try? NSKeyedArchiver.archivedData(
                 withRootObject: UIColor.systemPink,

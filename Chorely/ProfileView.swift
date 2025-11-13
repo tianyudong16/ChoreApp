@@ -38,14 +38,14 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     
-                    // MARK: - TITLE
+                    // MARK: TITLE
                     Text("Profile")
                         .font(.title2.bold())
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 20)
                         .padding(.bottom, 10)
                     
-                    // MARK: - PROFILE HEADER
+                    // MARK: PROFILE HEADER
                     VStack(spacing: 15) {
                         
                         // Profile Picture
@@ -97,7 +97,7 @@ struct ProfileView: View {
                     .padding(.top, 30)
                     .padding(.bottom, 20)
                     
-                    // MARK: - MENU OPTIONS
+                    //MARK: MENU OPTIONS
                     VStack(spacing: 0) {
                         
                         // Edit Section with Color Picker
@@ -242,7 +242,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - MENU ITEM
+    // MARK: MENU ITEM
     @ViewBuilder
     func menuItem(
         icon: String,
@@ -277,7 +277,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - ABOUT GROUP SHEET
+    // MARK: ABOUT GROUP SHEET
     @ViewBuilder
     func aboutGroupSheet() -> some View {
         NavigationStack {
@@ -304,7 +304,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - HELPER FUNCTIONS
+    // MARK: HELPER FUNCTIONS
     
     private func saveProfileChanges() {
         user.name = username
@@ -355,7 +355,7 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - EDIT PROFILE VIEW
+// MARK: EDIT PROFILE VIEW
 struct EditProfileView: View {
     @Environment(\.dismiss) var dismiss
     

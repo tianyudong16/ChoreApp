@@ -19,11 +19,11 @@ class FirebaseInterface {
     private let storage = Storage.storage()
 }
 
-// MARK: - SIGN UP
+// MARK: SIGN UP
 
 extension FirebaseInterface {
     
-    // Creates a new FirebaseAuth account and user profile, then adds user to a group
+    //Creates a new FirebaseAuth account and user profile, then adds user to a group
     func signUp(
         name: String,
         email: String,
@@ -49,7 +49,7 @@ extension FirebaseInterface {
     }
 }
 
-// MARK: - GROUP CREATION / JOINING
+// MARK: GROUP CREATION / JOINING
 
 extension FirebaseInterface {
     
@@ -105,7 +105,7 @@ extension FirebaseInterface {
             }
     }
     
-    /// Create a group document then add user.
+    // Create a group document and then user
     private func createGroupAndAddUser(
         uid: String,
         name: String,
@@ -138,7 +138,7 @@ extension FirebaseInterface {
     }
 }
 
-// MARK: - ADD USER TO GROUP
+// MARK: ADD USER TO GROUP
 
 extension FirebaseInterface {
     
@@ -188,7 +188,7 @@ extension FirebaseInterface {
     }
 }
 
-// MARK: - LOGIN (NAME + PASSWORD)
+// MARK: LOGIN (NAME & PASSWORD)
 
 extension FirebaseInterface {
     
@@ -197,7 +197,7 @@ extension FirebaseInterface {
         password: String,
         completion: @escaping (Result<UserInfo, Error>) -> Void
     ) {
-        // Step 1: Find user document by name
+        //Step 1: Find the user document by name
         db.collection("users")
             .whereField("name", isEqualTo: name)
             .getDocuments { snapshot, err in
@@ -212,7 +212,7 @@ extension FirebaseInterface {
                 
                 let email = doc["email"] as? String ?? ""
                 
-                // Step 2: Auth login using email + password
+                //Step 2: Auth login using the inputted email & password
                 Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
                     if let error = error { return completion(.failure(error)) }
                     
@@ -228,7 +228,7 @@ extension FirebaseInterface {
 }
 
 
-// MARK: - FETCH USER
+//MARK: FETCH USER
 
 extension FirebaseInterface {
     
@@ -248,7 +248,7 @@ extension FirebaseInterface {
 }
 
 
-// MARK: - GROUP MEMBER LISTENER
+// MARK: GROUP MEMBER LISTENER
 
 extension FirebaseInterface {
     
@@ -270,7 +270,7 @@ extension FirebaseInterface {
 }
 
 
-// MARK: - PROFILE UPDATES
+// MARK: PROFILE UPDATES
 
 extension FirebaseInterface {
     
@@ -315,7 +315,6 @@ extension FirebaseInterface {
                 if let error = error { return completion(.failure(error)) }
                 guard let urlStr = url?.absoluteString else { return }
                 
-                // Save URL
                 self.db.collection("users").document(uid).updateData(["photoURL": urlStr])
                 self.db.collection("groups")
                     .document(groupID)
@@ -328,3 +327,4 @@ extension FirebaseInterface {
         }
     }
 }
+

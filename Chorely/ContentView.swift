@@ -12,7 +12,7 @@ struct ContentView: View {
     
     @State private var isRegistering = false
     
-    // Login fields - NOW USING EMAIL
+    // Login fields
     @State private var loginEmail = ""
     @State private var loginPassword = ""
     
@@ -31,7 +31,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 25) {
             
-            // Remove Chorely title - let the view speak for itself
+            // Remove Chorely title, let the view speak for itself
             if loggedInUser == nil {
                 if isRegistering {
                     Text("Sign Up")
@@ -63,7 +63,7 @@ struct ContentView: View {
 }
 
 //
-// MARK: - LOGIN VIEW
+// MARK: LOGIN VIEW
 //
 
 extension ContentView {
@@ -128,7 +128,7 @@ extension ContentView {
 }
 
 //
-// MARK: - SIGN UP VIEW
+// MARK: SIGN UP VIEW
 //
 
 extension ContentView {
