@@ -28,7 +28,7 @@ struct MainTabView: View {
 
             // Wrap ProfileView in NavigationStack
             NavigationStack {
-                ProfileView()
+                ProfileView(user: user)
             }
             .tabItem {
                 Label("Profile", systemImage: "person.crop.circle")

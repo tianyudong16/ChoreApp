@@ -1,58 +1,121 @@
 import SwiftUI
+import PhotosUI // Needed for the photo picker
 
 struct ProfileView: View {
-    @State private var username: String = "User's Name"
+    var user: UserInfo
     @State private var profileColor: Color = .pink
     @State private var notificationsOn = true
-    
+
+    // Editable name & photo states
+    @State private var username: String
+    @State private var isEditingName = false
+    @State private var selectedPhoto: PhotosPickerItem? = nil
+    @State private var profileImage: Image? = nil
+
+    // Initialize the username from the logged-in user
+    init(user: UserInfo) {
+        self.user = user
+        _username = State(initialValue: user.name)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 25) {
 
-            // Profile Header
+            // Profile header
             HStack(alignment: .center, spacing: 15) {
-                // Profile icon on left
-                ZStack {
-                    Circle()
-                        .fill(profileColor.opacity(0.3))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "person.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 40, height: 40)
-                        .foregroundColor(.gray)
-                }
-                .overlay(
-                    Text("click to edit")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                        .offset(y: 45)
-                        .padding(.top, 10)
-                )
-                .onTapGesture {
-                    // TODO: open image picker later
-                }
                 
-                // Username text
+                // Tappable profile icon with "Edit Photo" overlay
+                VStack(spacing: 4) {
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        ZStack(alignment: .bottomTrailing) {
+                            // Display selected or placeholder image
+                            if let profileImage = profileImage {
+                                profileImage
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 90, height: 90)
+                                    .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(profileColor.opacity(0.3))
+                                    .frame(width: 90, height: 90)
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 45, height: 45)
+                                            .foregroundColor(.gray)
+                                    )
+                            }
+
+                            // Camera icon overlay
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 28, height: 28)
+                                .overlay(
+                                    Image(systemName: "camera.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 14, height: 14)
+                                        .foregroundColor(.gray)
+                                )
+                                .offset(x: 6, y: 6)
+                        }
+                    }
+                    // Handle photo picker
+                    .onChange(of: selectedPhoto) { newItem in
+                        Task {
+                            if let data = try? await newItem?.loadTransferable(type: Data.self),
+                               let uiImage = UIImage(data: data) {
+                                profileImage = Image(uiImage: uiImage)
+                            }
+                        }
+                    }
+
+                    // "Edit Photo" label underneath
+                    Text("Edit Photo")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                // Editable name field with pencil icon
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(username)
-                        .font(.title2.bold())
+                    HStack {
+                        if isEditingName {
+                            TextField("Enter name", text: $username)
+                                .font(.title2.bold())
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 180)
+                        } else {
+                            Text(username)
+                                .font(.title2.bold())
+                        }
+
+                        Button(action: {
+                            isEditingName.toggle()
+                        }) {
+                            Image(systemName: isEditingName ? "checkmark.circle.fill" : "pencil.circle.fill")
+                                .foregroundColor(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                
+
                 Spacer()
-                
+
                 // Color picker on right
                 ColorPicker("", selection: $profileColor, supportsOpacity: false)
                     .labelsHidden()
             }
             .padding(.top)
-            
+
             Divider()
-            
-            // MARK: - Profile Menu Options
+
+            // Profile menu
             VStack(spacing: 16) {
                 ProfileOptionRow(label: "Join Group", color: .blue, icon: "person.2.fill")
-                ProfileOptionRow(label: "About Group", color: .green, icon: "info.circle.fill")
-                
+                ProfileOptionRow(label: "About \(user.groupName)", color: .green, icon: "info.circle.fill")
+
                 Button(role: .destructive) {
                     // TODO: add leave group logic
                 } label: {
@@ -60,10 +123,9 @@ struct ProfileView: View {
                         .font(.headline)
                         .foregroundColor(.red)
                 }
-                
+
                 Divider()
-                
-                // Notifications toggle
+
                 HStack {
                     Text("Notifications")
                         .font(.headline)
@@ -72,10 +134,9 @@ struct ProfileView: View {
                         .labelsHidden()
                 }
                 .padding(.horizontal)
-                
-                // Log out
+
                 Button(role: .destructive) {
-                    // TODO: handle logout
+                    // handles logout
                 } label: {
                     HStack {
                         Text("LOG OUT")
@@ -87,7 +148,7 @@ struct ProfileView: View {
                 }
                 .padding(.top, 10)
             }
-            
+
             Spacer()
         }
         .padding()
@@ -95,12 +156,12 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - Reusable Row Component
+// Row components
 struct ProfileOptionRow: View {
     let label: String
     let color: Color
     let icon: String
-    
+
     var body: some View {
         HStack {
             Image(systemName: icon)
@@ -108,13 +169,13 @@ struct ProfileOptionRow: View {
                 .frame(width: 40, height: 40)
                 .background(color)
                 .clipShape(Circle())
-            
+
             Text(label)
                 .font(.headline)
                 .foregroundColor(.primary)
-            
+
             Spacer()
-            
+
             Image(systemName: "chevron.right")
                 .foregroundColor(.gray)
         }
@@ -122,8 +183,9 @@ struct ProfileOptionRow: View {
     }
 }
 
+// Preview view
 #Preview {
     NavigationStack {
-        ProfileView()
+        ProfileView(user: UserInfo(name: "Preview User", groupName: "Preview Group"))
     }
 }
