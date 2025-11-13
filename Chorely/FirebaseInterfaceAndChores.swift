@@ -12,7 +12,7 @@ import FirebaseFirestore
 
 extension FirebaseInterface {
     
-    // MARK: - SAVE CHORE
+    // Save chores
     func saveChore(chore: ChoreItem, groupID: String, completion: @escaping (Result<Void, Error>) -> Void) {
         let choreData: [String: Any] = [
             "id": chore.id.uuidString,
@@ -42,7 +42,7 @@ extension FirebaseInterface {
             }
     }
     
-    // MARK: - FETCH CHORES
+    // fetching chores from database
     func fetchChores(groupID: String, completion: @escaping (Result<[ChoreItem], Error>) -> Void) {
         db.collection("groups")
             .document(groupID)
@@ -98,7 +98,7 @@ extension FirebaseInterface {
             }
     }
     
-    // MARK: - UPDATE CHORE COMPLETION
+    // updating chore completion
     func updateChoreCompletion(choreID: String, groupID: String, isCompleted: Bool) {
         db.collection("groups")
             .document(groupID)
@@ -107,7 +107,7 @@ extension FirebaseInterface {
             .updateData(["isCompleted": isCompleted])
     }
     
-    // MARK: - DELETE CHORE
+    // deleting chores
     func deleteChore(choreID: String, groupID: String) {
         db.collection("groups")
             .document(groupID)
@@ -116,7 +116,7 @@ extension FirebaseInterface {
             .delete()
     }
     
-    // MARK: - LISTEN TO CHORES (Real-time updates)
+    // listen to chores (Real-time updates)
     func listenToChores(groupID: String, onUpdate: @escaping ([ChoreItem]) -> Void) {
         db.collection("groups")
             .document(groupID)
@@ -167,7 +167,7 @@ extension FirebaseInterface {
             }
     }
     
-    // MARK: - APPROVE CHORE
+    // approve chores
     func approveChore(choreID: String, groupID: String) {
         db.collection("groups")
             .document(groupID)
@@ -176,7 +176,7 @@ extension FirebaseInterface {
             .updateData(["isPending": false])
     }
     
-    // MARK: - DENY/REJECT CHORE
+    // deny/reject chores
     func denyChore(choreID: String, groupID: String) {
         db.collection("groups")
             .document(groupID)

@@ -13,7 +13,7 @@
 		060EA0072EB5C32B0058935C /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA0062EB5C32B0058935C /* FirebaseDatabase */; };
 		060EA0092EB5C32B0058935C /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA0082EB5C32B0058935C /* FirebaseFirestore */; };
 		060EA00B2EB5C32B0058935C /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 060EA00A2EB5C32B0058935C /* FirebaseMessaging */; };
-		EAFC02F52EC5A7D700D822E0 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = EAFC02F42EC5A7D700D822E0 /* FirebaseStorage */; };
+		06F0923C2EC666DE00B8BBF5 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 06F0923B2EC666DE00B8BBF5 /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,7 +87,7 @@
 				060EA0012EB5C32B0058935C /* FirebaseAnalytics in Frameworks */,
 				060EA0052EB5C32B0058935C /* FirebaseCore in Frameworks */,
 				060EA0072EB5C32B0058935C /* FirebaseDatabase in Frameworks */,
-				EAFC02F52EC5A7D700D822E0 /* FirebaseStorage in Frameworks */,
+				06F0923C2EC666DE00B8BBF5 /* FirebaseStorage in Frameworks */,
 				060EA0092EB5C32B0058935C /* FirebaseFirestore in Frameworks */,
 				060EA0032EB5C32B0058935C /* FirebaseAuth in Frameworks */,
 			);
@@ -116,7 +116,6 @@
 				EA788F4C2EB2DA110005E1E3 /* Chorely */,
 				EA788F5A2EB2DA120005E1E3 /* ChorelyTests */,
 				EA788F642EB2DA120005E1E3 /* ChorelyUITests */,
-				EAFC02F32EC5A7D700D822E0 /* Frameworks */,
 				EA788F4B2EB2DA110005E1E3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -129,13 +128,6 @@
 				EA788F612EB2DA120005E1E3 /* ChorelyUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		EAFC02F32EC5A7D700D822E0 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -164,7 +156,7 @@
 				060EA0062EB5C32B0058935C /* FirebaseDatabase */,
 				060EA0082EB5C32B0058935C /* FirebaseFirestore */,
 				060EA00A2EB5C32B0058935C /* FirebaseMessaging */,
-				EAFC02F42EC5A7D700D822E0 /* FirebaseStorage */,
+				06F0923B2EC666DE00B8BBF5 /* FirebaseStorage */,
 			);
 			productName = Chorely;
 			productReference = EA788F4A2EB2DA110005E1E3 /* Chorely.app */;
@@ -657,7 +649,7 @@
 			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
 		};
-		EAFC02F42EC5A7D700D822E0 /* FirebaseStorage */ = {
+		06F0923B2EC666DE00B8BBF5 /* FirebaseStorage */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 060E9FFF2EB5C32B0058935C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;

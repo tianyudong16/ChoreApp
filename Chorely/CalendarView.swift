@@ -50,13 +50,13 @@ struct CalendarView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 
-                // MARK: - CALENDAR TITLE
+                // MARK: CALENDAR TITLE
                 Text("Calendar")
                     .font(.title2.bold())
                     .padding(.top, 20)
                     .padding(.bottom, 10)
                 
-                // MARK: - VIEW MODE PICKER
+                // MARK: VIEW MODE PICKER
                 HStack(spacing: 20) {
                     viewModeButton(mode: .group, title: "Group", icon: "person.3.fill")
                     viewModeButton(mode: .roommate, title: "Roommate", icon: "person.2.fill")
@@ -67,7 +67,7 @@ struct CalendarView: View {
                 
                 ScrollView {
                     VStack(spacing: 0) {
-                        // MARK: - MONTH NAVIGATION
+                        // MARK: MONTH NAVIGATION
                         HStack {
                             Button(action: { currentMonthOffset -= 1 }) {
                                 Image(systemName: "chevron.left")
@@ -91,7 +91,7 @@ struct CalendarView: View {
                         .padding(.horizontal)
                         .padding(.bottom, 10)
                         
-                        // MARK: - WEEKDAY LABELS
+                        // MARK: WEEKDAY LABELS
                         HStack(spacing: 0) {
                             ForEach(["S","M","T","W","T","F","S"], id: \.self) { day in
                                 Text(day)
@@ -101,7 +101,7 @@ struct CalendarView: View {
                         }
                         .padding(.horizontal)
                         
-                        // MARK: - CALENDAR GRID
+                        // MARK: CALENDAR GRID
                         let days = extractDates(for: getCurrentMonth())
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
                             
@@ -122,7 +122,7 @@ struct CalendarView: View {
                         Divider()
                             .padding(.vertical, 15)
                         
-                        // MARK: - WEEKLY CHORE STATS SECTION
+                        // MARK: WEEKLY CHORE STATS SECTION
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Weekly Chore Stats")
                                 .font(.headline)
@@ -151,7 +151,7 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - LOAD GROUP MEMBERS
+    // MARK: LOAD GROUP MEMBERS
     private func loadGroupMembers() {
         FirebaseInterface.shared.listenToGroupMembers(groupID: user.groupID) { updatedMembers in
             DispatchQueue.main.async {
@@ -160,7 +160,7 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - LOAD CHORES
+    // MARK: LOAD CHORES
     private func loadChores() {
         FirebaseInterface.shared.listenToChores(groupID: user.groupID) { updatedChores in
             DispatchQueue.main.async {
@@ -169,7 +169,7 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - VIEW MODE BUTTON
+    // MARK: VIEW MODE BUTTON
     @ViewBuilder
     func viewModeButton(mode: CalendarViewMode, title: String, icon: String) -> some View {
         Button {
@@ -191,7 +191,7 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - DAY CELL
+    // MARK: DAY CELL
     @ViewBuilder
     func dayCell(_ dayValue: DayValue) -> some View {
         
@@ -219,7 +219,9 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - WEEKLY STATS CARD
+    // Shows the progress bars of weekly stats
+    // numbers are displayed as percentages of completion
+    // progress is relative to each user's number of assigned tasks
     @ViewBuilder
     func weeklyStatsCard() -> some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -293,7 +295,7 @@ struct CalendarView: View {
         )
     }
     
-    // MARK: - HELPER FUNCTIONS
+    // Helper functions
     
     private func getCurrentMonth() -> Date {
         Calendar.current.date(byAdding: .month, value: currentMonthOffset, to: Date())!

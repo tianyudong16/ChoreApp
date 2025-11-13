@@ -19,7 +19,7 @@ struct HomeView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 
-                // MARK: - HEADER with Dashboard title
+                // Header
                 Text("House Group Dashboard")
                     .font(.title2.bold())
                     .padding(.top, 20)
@@ -28,7 +28,7 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         
-                        // MARK: - MEMBERS SECTION
+                        // Displaying group members
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "person.2.fill")
@@ -39,7 +39,7 @@ struct HomeView: View {
                             }
                             .padding(.horizontal)
                             
-                            // Members list with colored backgrounds
+                            // Members list with their respective colored backgrounds
                             VStack(spacing: 8) {
                                 ForEach(members) { member in
                                     memberCard(member)
@@ -48,7 +48,7 @@ struct HomeView: View {
                             .padding(.horizontal)
                         }
                         
-                        // MARK: - VIEW CHORES BUTTON
+                        // View chores button
                         NavigationLink {
                             ChoresView(user: user)
                         } label: {
@@ -67,7 +67,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
                         
-                        // MARK: - TODAY'S CHORES COUNT
+                        // Today's chores count
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "checklist")
@@ -96,7 +96,7 @@ struct HomeView: View {
                             }
                         }
                         
-                        // MARK: - PENDING APPROVALS
+                        // Shows pending approvals
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "clock.badge.exclamationmark")
@@ -136,7 +136,7 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - LOAD TODAY'S CHORES
+    // Loading daily chores
     private func loadTodaysChores() {
         FirebaseInterface.shared.fetchChores(groupID: user.groupID) { result in
             DispatchQueue.main.async {
@@ -164,7 +164,7 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - APPROVE CHORE
+    // Approving chores
     private func approveChore(_ chore: ChoreItem) {
         FirebaseInterface.shared.approveChore(choreID: chore.id.uuidString, groupID: user.groupID)
         
@@ -177,7 +177,7 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - DENY CHORE
+    // Denying chores
     private func denyChore(_ chore: ChoreItem) {
         FirebaseInterface.shared.denyChore(choreID: chore.id.uuidString, groupID: user.groupID)
         
@@ -190,7 +190,7 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - MEMBER CARD
+    // Shows profile picture of each group member
     @ViewBuilder
     func memberCard(_ member: GroupMember) -> some View {
         HStack(spacing: 12) {
@@ -229,7 +229,7 @@ struct HomeView: View {
         )
     }
     
-    // MARK: - PENDING APPROVAL ROW
+    // Pending approval row
     @ViewBuilder
     func pendingApprovalRow(approval: ChoreItem) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -283,7 +283,7 @@ struct HomeView: View {
         )
     }
     
-    // MARK: - TODAY CHORE ROW
+    // Daily chores
     @ViewBuilder
     func todayChoreRow(chore: ChoreItem) -> some View {
         HStack {

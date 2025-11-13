@@ -30,13 +30,13 @@ struct ChoresView: View {
         case priorityHigh = "High Priority"
     }
     
-    // 1. Init for HomeView (takes no date)
+    //Init for HomeView (takes no date)
     init(user: UserInfo) {
         self.user = user
         self.selectedDate = nil
     }
     
-    // 2. Init for CalendarView (takes a date)
+    //Init for CalendarView (takes a date)
     init(user: UserInfo, selectedDate: Date) {
         self.user = user
         self.selectedDate = selectedDate
@@ -73,7 +73,7 @@ struct ChoresView: View {
     var body: some View {
         VStack(spacing: 0) {
             
-            // MARK: - HEADER
+            // Header
             HStack {
                 Text("Chores")
                     .font(.title2.bold())
@@ -92,7 +92,7 @@ struct ChoresView: View {
             .padding(.top, 20)
             .padding(.bottom, 10)
             
-            // MARK: - FILTER BADGE
+            // Handles filtering
             if filterOption != .all {
                 HStack {
                     Text("Filtered by: \(filterOption.rawValue)")
@@ -134,7 +134,7 @@ struct ChoresView: View {
                 .listStyle(.insetGrouped)
             }
             
-            // MARK: - ADD CHORE BUTTON AT BOTTOM
+            // Add Chores Button
             Button {
                 showNewChoreSheet = true
             } label: {
@@ -168,7 +168,7 @@ struct ChoresView: View {
         }
     }
     
-    // MARK: - LOAD MEMBERS
+    // Load group members
     private func loadMembers() {
         FirebaseInterface.shared.listenToGroupMembers(groupID: user.groupID) { updatedMembers in
             DispatchQueue.main.async {
@@ -177,7 +177,7 @@ struct ChoresView: View {
         }
     }
     
-    // MARK: - LOAD CHORES
+    // Load chores
     private func loadChores() {
         FirebaseInterface.shared.fetchChores(groupID: user.groupID) { result in
             DispatchQueue.main.async {
@@ -192,7 +192,7 @@ struct ChoresView: View {
         }
     }
     
-    // MARK: - SAVE CHORE
+    // Saving chores
     private func saveChoreToFirebase(_ chore: ChoreItem) {
         FirebaseInterface.shared.saveChore(chore: chore, groupID: user.groupID) { result in
             switch result {
@@ -204,7 +204,7 @@ struct ChoresView: View {
         }
     }
     
-    // MARK: - DELETE CHORES
+    // Deleting chores
     private func deleteChores(at offsets: IndexSet) {
         for index in offsets {
             let chore = filteredChores[index]
@@ -213,7 +213,7 @@ struct ChoresView: View {
         }
     }
     
-    // MARK: - CHORE ROW
+    // Showing all chores
     @ViewBuilder
     func choreRow(_ chore: ChoreItem) -> some View {
         let assignedMember = members.first(where: { $0.name == chore.assignedTo })
@@ -253,7 +253,7 @@ struct ChoresView: View {
             
             Spacer()
             
-            // Priority Dots
+            // Priority levels
             HStack(spacing: 4) {
                 ForEach(1...3, id: \.self) { i in
                     Circle()
@@ -267,7 +267,7 @@ struct ChoresView: View {
         .cornerRadius(10)
     }
     
-    // MARK: - TOGGLE COMPLETION
+    // Toggling completion
     private func toggleChoreCompletion(_ chore: ChoreItem) {
         if let index = chores.firstIndex(where: { $0.id == chore.id }) {
             chores[index].isCompleted.toggle()
@@ -280,9 +280,7 @@ struct ChoresView: View {
     }
 }
 
-//
-// MARK: - CHORE ITEM MODEL
-//
+// Model for chore items
 
 struct ChoreItem: Identifiable, Codable {
     let id: UUID
@@ -294,8 +292,8 @@ struct ChoreItem: Identifiable, Codable {
     var repetition: String // "none", "daily", "weekly", "monthly"
     var estimatedTime: Int // in minutes
     var description: String
-    var isPending: Bool // NEW: For approval system
-    var proposedBy: String // NEW: Who proposed this chore
+    var isPending: Bool //For approval system
+    var proposedBy: String //Who proposed this chore
     
     init(
         id: UUID = UUID(),
@@ -333,9 +331,7 @@ struct ChoreItem: Identifiable, Codable {
     }
 }
 
-//
-// MARK: - ADD CHORE SHEET
-//
+// Adding chores sheet
 
 struct AddChoreSheet: View {
     
@@ -352,7 +348,7 @@ struct AddChoreSheet: View {
     @State private var description = ""
     @State private var hasDueDate = false
     @State private var dueDate = Date()
-    @State private var assignToHouse = false // NEW: Toggle for house assignment
+    @State private var assignToHouse = false // Toggles for assigning chore to house group
     
     var body: some View {
         NavigationStack {
@@ -433,9 +429,7 @@ struct AddChoreSheet: View {
     }
 }
 
-//
-// MARK: - FILTER SHEET
-//
+// Handles filter options
 
 struct FilterSheet: View {
     @Environment(\.dismiss) var dismiss

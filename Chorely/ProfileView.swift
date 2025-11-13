@@ -38,14 +38,14 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     
-                    // MARK: - TITLE
+                    // Title
                     Text("Profile")
                         .font(.title2.bold())
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 20)
                         .padding(.bottom, 10)
                     
-                    // MARK: - PROFILE HEADER
+                    // Profile header
                     VStack(spacing: 15) {
                         
                         // Profile Picture
@@ -97,7 +97,7 @@ struct ProfileView: View {
                     .padding(.top, 30)
                     .padding(.bottom, 20)
                     
-                    // MARK: - MENU OPTIONS
+                    // Menu options
                     VStack(spacing: 0) {
                         
                         // Edit Section with Color Picker
@@ -188,7 +188,7 @@ struct ProfileView: View {
                         
                         Divider().padding(.leading, 60)
                         
-                        // Log Out (Red)
+                        // Log Out
                         menuItem(
                             icon: "rectangle.portrait.and.arrow.right.fill",
                             title: "LOG OUT",
@@ -242,7 +242,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - MENU ITEM
+    // Menu Item
     @ViewBuilder
     func menuItem(
         icon: String,
@@ -277,7 +277,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - ABOUT GROUP SHEET
+    // About Group
     @ViewBuilder
     func aboutGroupSheet() -> some View {
         NavigationStack {
@@ -304,7 +304,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - HELPER FUNCTIONS
+    // Helper Functions
     
     private func saveProfileChanges() {
         user.name = username
@@ -355,7 +355,7 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - EDIT PROFILE VIEW
+// Edit Profile View
 struct EditProfileView: View {
     @Environment(\.dismiss) var dismiss
     
