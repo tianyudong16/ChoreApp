@@ -1,221 +1,129 @@
-//
-//  ProfileView.swift
-//  Chorely
-//
-//  Created by Brooke Tanner on 11/9/25.
-//
-
 import SwiftUI
-import UserNotifications
 
 struct ProfileView: View {
-    @State private var name: String = "User's Name"
-    @State private var color: Color = .blue
-    @AppStorage("notificationsEnabled") private var notificationsOn = true
-    @State private var showPermsAlert = false
-    @State private var denied = false
-    @State private var showJoinAlert = false
-    @State private var showLeaveAlert = false
-    @State private var showImagePicker = false
-    @State private var profileImage: Image? = Image(systemName: "person.circle")
-    
-    private func handleToggleChange(_ on: Bool) {
-        guard on else { return }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            DispatchQueue.main.async {
-                if !granted {
-                    self.notificationsOn = false
-                    self.showPermsAlert = true
-                }
-            }
-        }
-    }
-
-    private func refreshAuthStatus() {
-        UNUserNotificationCenter.current().getNotificationSettings { s in
-            DispatchQueue.main.async {
-                self.denied = (s.authorizationStatus == .denied)
-                if denied { self.notificationsOn = false }
-            }
-        }
-    }
-
-    private func openSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        UIApplication.shared.open(url)
-    }
+    @State private var username: String = "User's Name"
+    @State private var profileColor: Color = .pink
+    @State private var notificationsOn = true
     
     var body: some View {
-        NavigationStack{
-            VStack(spacing: 20){
-                
-                VStack{
-                    ZStack(alignment: .bottomTrailing){
-                        profileImage?
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 100, height: 100)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.gray, lineWidth: 1))
-                            .onTapGesture{showImagePicker.toggle() }
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundColor(.blue)
-                            .offset(x: 8, y: 4)
-                    }
-                    TextField("User's Name", text: $name)
-                        .font(.title2)
-                        .multilineTextAlignment(.center)
-                        .textInputAutocapitalization(.words)
-                        .padding(.horizontal)
-                    
+        VStack(alignment: .leading, spacing: 25) {
+
+            // Profile Header
+            HStack(alignment: .center, spacing: 15) {
+                // Profile icon on left
+                ZStack {
                     Circle()
-                        .fill(color)
+                        .fill(profileColor.opacity(0.3))
+                        .frame(width: 80, height: 80)
+                    Image(systemName: "person.fill")
+                        .resizable()
+                        .scaledToFit()
                         .frame(width: 40, height: 40)
-                        .overlay(Circle().stroke(.gray, lineWidth: 1))
-                    
-                    Button("Change Color"){
-                        //open color picker
-                    }
-                    .buttonStyle(.bordered)
+                        .foregroundColor(.gray)
+                }
+                .overlay(
+                    Text("click to edit")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                        .offset(y: 45)
+                        .padding(.top, 10)
+                )
+                .onTapGesture {
+                    // TODO: open image picker later
+                }
+                
+                // Username text
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(username)
+                        .font(.title2.bold())
+                }
+                
+                Spacer()
+                
+                // Color picker on right
+                ColorPicker("", selection: $profileColor, supportsOpacity: false)
+                    .labelsHidden()
+            }
+            .padding(.top)
+            
+            Divider()
+            
+            // MARK: - Profile Menu Options
+            VStack(spacing: 16) {
+                ProfileOptionRow(label: "Join Group", color: .blue, icon: "person.2.fill")
+                ProfileOptionRow(label: "About Group", color: .green, icon: "info.circle.fill")
+                
+                Button(role: .destructive) {
+                    // TODO: add leave group logic
+                } label: {
+                    Text("Leave Group")
+                        .font(.headline)
+                        .foregroundColor(.red)
                 }
                 
                 Divider()
                 
-                VStack(spacing: 15){
-                    NavigationLink(destination: EditProfileView(name: $name, color: $color)) {
-                        ProfileRow(icon: "square.and.pencil", label: "Edit")
-                    }
-                    
-                    Button{
-                        showJoinAlert = true
-                    } label: {
-                        ProfileRow(icon: "person.3", label: "Join Group")
-                    }
-                    .alert("Join Group", isPresented: $showJoinAlert){
-                        Button("Cancel", role: .cancel) {}
-                        Button("Join", role: .none) {}
-                    }message: {
-                        Text("Enter group code to join.")
-                    }
-                    
-                    NavigationLink(destination: AboutGroupView()){
-                        ProfileRow(icon: "info.circle", label: "About Group")
-                    }
-                    
-                    Button{
-                        showLeaveAlert = true
-                    } label: {
-                        ProfileRow(icon: "rectangle.portrait.and.arrow.right", label: "Leave Group", color: .red)
-                    }
-                    .alert("Leave Group?", isPresented: $showLeaveAlert){
-                        Button("Cancel", role: .cancel) {}
-                        Button("Leave", role: .destructive) {}
-                    }message: {
-                        Text("Are you sure you want to leave this group?")
-                    }
-                }
-                
-                .padding(.horizontal)
-                
-                VStack(spacing: 8){
-                    HStack {
-                        Label("Notifications", systemImage: notificationsOn ? "bell.fill" : "bell.slash.fill")
-                            .font(.headline)
-                        Spacer()
-                        StatusChip(isOn: notificationsOn)
-                    }
-                    .padding(.horizontal,24)
-                    
-                    Toggle("Enable", isOn: $notificationsOn)
-                        .padding(.horizontal, 24)
-                        .onChange(of: notificationsOn) {newVal in handleToggleChange(newVal)
-                        }
-                }
-                
-                
-                Spacer()
-                
-                Button{
-                    print("Log out pressed")
-                }label:{
-                    Text("Log Out")
+                // Notifications toggle
+                HStack {
+                    Text("Notifications")
                         .font(.headline)
-                        .foregroundColor(.red)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: 10).stroke(.red))
+                    Spacer()
+                    Toggle("", isOn: $notificationsOn)
+                        .labelsHidden()
                 }
                 .padding(.horizontal)
+                
+                // Log out
+                Button(role: .destructive) {
+                    // TODO: handle logout
+                } label: {
+                    HStack {
+                        Text("LOG OUT")
+                            .font(.headline)
+                            .foregroundColor(.red)
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
+                    }
+                }
+                .padding(.top, 10)
             }
-            .navigationTitle("Profile")
-            .onAppear { refreshAuthStatus() }
-            .alert("Notifications are disabled in Settings", isPresented: $showPermsAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Open Settings") { openSettings() }
-            } message: {
-                Text("To enable notifications, allow them in iOS Settings.")
-            }
+            
+            Spacer()
         }
+        .padding()
+        .navigationTitle("Profile")
     }
 }
 
-struct ProfileRow: View{
-    let icon: String
+// MARK: - Reusable Row Component
+struct ProfileOptionRow: View {
     let label: String
-    var color: Color = .primary
+    let color: Color
+    let icon: String
     
-    var body: some View{
-        HStack{
+    var body: some View {
+        HStack {
             Image(systemName: icon)
-                .foregroundColor(color)
+                .foregroundColor(.white)
+                .frame(width: 40, height: 40)
+                .background(color)
+                .clipShape(Circle())
+            
             Text(label)
-                .foregroundColor(color)
                 .font(.headline)
+                .foregroundColor(.primary)
+            
             Spacer()
+            
             Image(systemName: "chevron.right")
                 .foregroundColor(.gray)
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
+        .padding(.horizontal)
     }
 }
-
-struct StatusChip: View {
-    let isOn: Bool
-    var body: some View{
-        Text(isOn ? "ON" : "OFF")
-            .font(.caption).bold()
-            .padding(.horizontal,10).padding(.vertical,4)
-            .background((isOn ? Color.green : Color.red).opacity(0.18))
-            .foregroundStyle(isOn ? .green : .red)
-            .clipShape(Capsule())
-            .accessibilityLabel("Notifications \(isOn ? "On" : "Off")")
-    }
-}
-
-
-struct EditProfileView: View{
-    @Binding var name: String
-    @Binding var color: Color
-    var body: some View{
-        Form{
-            TextField("Name", text: $name)
-            ColorPicker("Select Color", selection: $color)
-        }
-        .navigationTitle("Edit Profile")
-        }
-    }
-
-struct AboutGroupView: View{
-    var body: some View{
-        Text("Group Info and Members")
-            .navigationTitle("About Group")
-    }
-}
-
 
 #Preview {
-    ProfileView()
+    NavigationStack {
+        ProfileView()
+    }
 }
