@@ -5,77 +5,42 @@
 //  Created by Tian Yu Dong on 11/8/25.
 //
 
+//
+//  DateAndExtension.swift
+//  Chorely
+//
+
 import Foundation
 
 extension Date {
-    static var capitalizedFirstLetterOfWeekdays: [String] {
+    
+    /// Returns all days of the month for this date
+    func extractMonthDates() -> [Date] {
         let calendar = Calendar.current
-        let weekdays = calendar.weekdaySymbols
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: self))!
+        let range = calendar.range(of: .day, in: .month, for: startOfMonth)!
         
-        return weekdays.map { weekday in
-            guard let firstLetter = weekday.first else { return "" }
-            return String(firstLetter).capitalized
+        return range.compactMap { day -> Date? in
+            return calendar.date(byAdding: .day, value: day - 1, to: startOfMonth)
         }
     }
     
-    static var fullMonthNames: [String]
-    {
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale.current
-        
-        return (1...12).compactMap { month in
-            dateFormatter.setLocalizedDateFormatFromTemplate("MMMM")
-            let date = Calendar.current.date(from: DateComponents(year: 2000, month: month, day: 1))
-            return date.map { dateFormatter.string(from: $0) }
-            
-        }
+    /// Month name + year (e.g., "January 2025")
+    func monthYearString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "LLLL yyyy"
+        return formatter.string(from: self)
     }
     
-    var startOfMonth: Date {
-        Calendar.current.dateInterval(of: .month, for: self)!.start
+    /// Returns true if this date is today
+    func isSameDay(as other: Date) -> Bool {
+        Calendar.current.isDate(self, inSameDayAs: other)
     }
     
-    var endOfMonth: Date {
-        let lastDay = Calendar.current.dateInterval(of: .month, for: self)!.end
-        return Calendar.current.date(byAdding: .day, value: -1, to: lastDay)!
-    }
-    
-    var startOfPreviousMonth: Date {
-        let dayInPreviousMonth = Calendar.current.date(byAdding: .month, value: -1, to: self)!
-        return dayInPreviousMonth.startOfMonth
-    }
-    
-    var numberOfDaysInMonth: Int {
-        Calendar.current.component(.day, from: endOfMonth)
-    }
-    
-    var sundayBeforeStart: Date {
-        let startOfMonthWeekday = Calendar.current.component(.weekday, from: startOfMonth)
-        let numberFromPreviousMonth = startOfMonthWeekday - 1
-        return Calendar.current.date(byAdding: .day, value: -numberFromPreviousMonth, to: startOfMonth)!
-    }
-    
-    var calendarDisplayDays: [Date] {
-        var days: [Date] = []
-        // Offset for current month days
-        for dayOffset in 0..<numberOfDaysInMonth {
-            let newDay = Calendar.current.date(byAdding: .day, value: dayOffset, to: startOfMonth)
-            days.append(newDay!)
-        }
-        // previous month days
-        for dayOffset in 0..<startOfPreviousMonth.numberOfDaysInMonth {
-            let newDay = Calendar.current.date(byAdding: .day, value: dayOffset, to: startOfPreviousMonth)
-            days.append(newDay!)
-        }
-        
-        return days.filter { $0 >= sundayBeforeStart && $0 <= endOfMonth }.sorted(by: <)
-    }
-    
-    var monthInt: Int {
-        Calendar.current.component(.month, from: self)
-    }
-    
-    var startOfDay: Date {
-        Calendar.current.startOfDay(for: self)
+    /// Returns the first weekday index (1 = Sunday, 2 = Monday...)
+    func firstWeekdayOfMonth() -> Int {
+        let calendar = Calendar.current
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: self))!
+        return calendar.component(.weekday, from: startOfMonth)
     }
 }

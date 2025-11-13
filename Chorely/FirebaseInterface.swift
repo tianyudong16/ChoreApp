@@ -2,119 +2,329 @@
 //  FirebaseInterface.swift
 //  Chorely
 //
-//  Created by Milo Guan on 11/7/25.
-//
 
 import Foundation
-import FirebaseCore
-import FirebaseFirestore
 import FirebaseAuth
+import FirebaseFirestore
+import FirebaseStorage
+import UIKit
+import SwiftUI
 
 class FirebaseInterface {
+    
     static let shared = FirebaseInterface()
+    private init() {}
     
-    let auth: Auth
-    let firestore: Firestore
+    private let db = Firestore.firestore()
+    private let storage = Storage.storage()
+}
+
+// MARK: - SIGN UP
+
+extension FirebaseInterface {
     
-    private init(){
-        if FirebaseApp.app() == nil{
-            FirebaseApp.configure()
-            print("Firebase configured successfully!")
-        } else {
-            print("Firebase already configured")
-        }
-        
-        self.auth = Auth.auth()
-        self.firestore = Firestore.firestore()
-        
-        //this signs us in on initialization, but we want to sign in when the user enters their name/password
-        //This code will be removed once signIn is completed.
-        Auth.auth().signInAnonymously { authResult, error in
-            if let error = error {
-                print("Auth failed: \(error.localizedDescription)")
-            } else if let user = authResult?.user {
-                print("Signed in anonymously with UID: \(user.uid)")
-            }
-        }
-    }
-    
-    //Adds a new user to the repository with the provided properties
-    //TO DO: make it so that the color is different for each user in the group
-    func addUser(name: String, groupName: String) {
-        print("Attempting to add user: \(name), \(groupName)")
-        
-        db.collection("Users").addDocument(data: [
-            "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
-            "color": "blue",//placeholder, we will write code to ensure each group member has a unique color
-            "groupName": groupName,
-        ]) { err in
-            if let err = err {
-                print("Error adding document: \(err)")
-            } else {
-                print("User added successfully!")
-            }
+    // Creates a new FirebaseAuth account and user profile, then adds user to a group
+    func signUp(
+        name: String,
+        email: String,
+        password: String,
+        groupName: String,
+        groupPassword: String,
+        completion: @escaping (Result<UserInfo, Error>) -> Void
+    ) {
+        Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
+            if let error = error { return completion(.failure(error)) }
+            guard let uid = authResult?.user.uid else { return }
+            
+            self.createOrJoinGroup(
+                uid: uid,
+                name: name,
+                email: email,
+                password: password,
+                groupName: groupName,
+                groupPassword: groupPassword,
+                completion: completion
+            )
         }
     }
+}
+
+// MARK: - GROUP CREATION / JOINING
+
+extension FirebaseInterface {
     
-    //Signs in the user using the given name and password
-    func signIn(name: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
-        auth.signIn(withEmail: <#T##String#>, password: <#T##String#>){result, error in
-            if let error = error{
-                completion(.failure(error))
-            } else if let user = result?.user {
+    // Decide whether to join an existing group or create a new one
+    private func createOrJoinGroup(
+        uid: String,
+        name: String,
+        email: String,
+        password: String,
+        groupName: String,
+        groupPassword: String,
+        completion: @escaping (Result<UserInfo, Error>) -> Void
+    ) {
+        db.collection("groups")
+            .whereField("name", isEqualTo: groupName)
+            .getDocuments { snapshot, error in
+                
+                if let error = error { return completion(.failure(error)) }
+                
+                if let doc = snapshot?.documents.first {
+                    // Group exists
+                    let groupID = doc.documentID
+                    let storedPassword = doc["password"] as? String ?? ""
+                    
+                    if storedPassword == groupPassword {
+                        // Join existing
+                        self.addUserToGroup(
+                            uid: uid,
+                            name: name,
+                            email: email,
+                            password: password,
+                            groupID: groupID,
+                            completion: completion
+                        )
+                    } else {
+                        completion(.failure(
+                            NSError(domain: "IncorrectGroupPassword", code: 0,
+                                    userInfo: [NSLocalizedDescriptionKey: "Incorrect group password."])
+                        ))
+                    }
+                } else {
+                    // Create a new group
+                    self.createGroupAndAddUser(
+                        uid: uid,
+                        name: name,
+                        email: email,
+                        password: password,
+                        groupName: groupName,
+                        groupPassword: groupPassword,
+                        completion: completion
+                    )
+                }
+            }
+    }
+    
+    /// Create a group document then add user.
+    private func createGroupAndAddUser(
+        uid: String,
+        name: String,
+        email: String,
+        password: String,
+        groupName: String,
+        groupPassword: String,
+        completion: @escaping (Result<UserInfo, Error>) -> Void
+    ) {
+        let groupID = UUID().uuidString
+        
+        let data: [String: Any] = [
+            "name": groupName,
+            "password": groupPassword,
+            "createdAt": Timestamp()
+        ]
+        
+        db.collection("groups").document(groupID).setData(data) { err in
+            if let err = err { return completion(.failure(err)) }
+            
+            self.addUserToGroup(
+                uid: uid,
+                name: name,
+                email: email,
+                password: password,
+                groupID: groupID,
+                completion: completion
+            )
+        }
+    }
+}
+
+// MARK: - ADD USER TO GROUP
+
+extension FirebaseInterface {
+    
+    private func addUserToGroup(
+        uid: String,
+        name: String,
+        email: String,
+        password: String,
+        groupID: String,
+        completion: @escaping (Result<UserInfo, Error>) -> Void
+    ) {
+        let defaultColor = UIColor.systemPink.cgColor
+        let encodedColor = defaultColor.toData()!
+        
+        let userDoc: [String: Any] = [
+            "uid": uid,
+            "name": name,
+            "email": email,
+            "groupID": groupID,
+            "photoURL": "",
+            "colorData": encodedColor.base64EncodedString()
+        ]
+        
+        // Save main profile
+        db.collection("users").document(uid).setData(userDoc)
+        
+        // Save inside group collection
+        db.collection("groups")
+            .document(groupID)
+            .collection("members")
+            .document(uid)
+            .setData(userDoc) { err in
+                
+                if let err = err { return completion(.failure(err)) }
+                
+                let user = UserInfo(
+                    uid: uid,
+                    name: name,
+                    email: email,
+                    groupID: groupID,
+                    photoURL: "",
+                    colorData: encodedColor
+                )
+                
                 completion(.success(user))
             }
-        }
     }
+}
+
+// MARK: - LOGIN (NAME + PASSWORD)
+
+extension FirebaseInterface {
     
-    //Note: we will need to add this functionality to addUser, and change the surrounding code of the ContentView page to support error catching.
-    func signUp(name: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
-        auth.createUser(withEmail: <#T##String#>, password: <#T##String#>){result, error in
-            if let error = error{
-                completion(.failure(error))
-            } else if let user = result?.user {
-                completion(.success(user))
+    func loginWithName(
+        name: String,
+        password: String,
+        completion: @escaping (Result<UserInfo, Error>) -> Void
+    ) {
+        // Step 1: Find user document by name
+        db.collection("users")
+            .whereField("name", isEqualTo: name)
+            .getDocuments { snapshot, err in
+                
+                if let err = err { return completion(.failure(err)) }
+                guard let doc = snapshot?.documents.first else {
+                    return completion(.failure(
+                        NSError(domain: "UserNotFound", code: 0,
+                                userInfo: [NSLocalizedDescriptionKey: "No user with that name exists."])
+                    ))
+                }
+                
+                let email = doc["email"] as? String ?? ""
+                
+                // Step 2: Auth login using email + password
+                Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
+                    if let error = error { return completion(.failure(error)) }
+                    
+                    do {
+                        let user = try UserInfo(from: doc)
+                        completion(.success(user))
+                    } catch {
+                        completion(.failure(error))
+                    }
+                }
+            }
+    }
+}
+
+
+// MARK: - FETCH USER
+
+extension FirebaseInterface {
+    
+    func fetchUser(uid: String, completion: @escaping (Result<UserInfo, Error>) -> Void) {
+        db.collection("users").document(uid).getDocument { doc, err in
+            if let err = err { return completion(.failure(err)) }
+            if let doc = doc {
+                do {
+                    let user = try UserInfo(from: doc)
+                    completion(.success(user))
+                } catch {
+                    completion(.failure(error))
+                }
             }
         }
     }
+}
+
+
+// MARK: - GROUP MEMBER LISTENER
+
+extension FirebaseInterface {
     
-    func signOut() {
-        do {
-            try auth.signOut()
-            print("successful sign-out")
-        } catch {
-            print("error signing out :(")
+    func listenToGroupMembers(
+        groupID: String,
+        onUpdate: @escaping ([GroupMember]) -> Void
+    ) {
+        db.collection("groups")
+            .document(groupID)
+            .collection("members")
+            .addSnapshotListener { snapshot, err in
+                
+                guard let docs = snapshot?.documents else { return onUpdate([]) }
+                
+                let members = docs.compactMap { try? GroupMember(from: $0) }
+                onUpdate(members)
+            }
+    }
+}
+
+
+// MARK: - PROFILE UPDATES
+
+extension FirebaseInterface {
+    
+    func updateUserName(uid: String, groupID: String, newName: String) {
+        db.collection("users").document(uid).updateData(["name": newName])
+        
+        db.collection("groups")
+            .document(groupID)
+            .collection("members")
+            .document(uid)
+            .updateData(["name": newName])
+    }
+    
+    func updateUserColor(uid: String, groupID: String, color: Color) {
+        let cg = UIColor(color).cgColor
+        let encoded = cg.toData()!.base64EncodedString()
+        
+        db.collection("users").document(uid).updateData(["colorData": encoded])
+        
+        db.collection("groups")
+            .document(groupID)
+            .collection("members")
+            .document(uid)
+            .updateData(["colorData": encoded])
+    }
+    
+    func uploadUserPhoto(
+        uid: String,
+        groupID: String,
+        image: UIImage,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        let path = "profilePhotos/\(uid).jpg"
+        let ref = storage.reference().child(path)
+        
+        guard let data = image.jpegData(compressionQuality: 0.8) else { return }
+        
+        ref.putData(data, metadata: nil) { _, error in
+            if let error = error { return completion(.failure(error)) }
+            
+            ref.downloadURL { url, error in
+                if let error = error { return completion(.failure(error)) }
+                guard let urlStr = url?.absoluteString else { return }
+                
+                // Save URL
+                self.db.collection("users").document(uid).updateData(["photoURL": urlStr])
+                self.db.collection("groups")
+                    .document(groupID)
+                    .collection("members")
+                    .document(uid)
+                    .updateData(["photoURL": urlStr])
+                
+                completion(.success(urlStr))
+            }
         }
-    }
-    
-    //TO DO: add functions that let a user change their password, name, and other attributes.
-    
-    //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
-    func getChores(){
-        
-    }
-    
-    //Adds a new chore to the repository with the following properties:
-    //name: String with the name
-    //priority: 1 = low, 2 = med, 3 = high. Never type anything that's not these 3 numbers
-    //repetitionTime: how often the chore is repeated (weekly, daily, ect). (To be honest, I don't know how we would represent this)
-    //date: When the chore is due to be done (if not repeated).
-    //description: a string containing the description
-    //assignedTo: the users that the chore is assigned to. Should contain at least one user
-    //isChecklist: whether or not the chore is a checklist chore as opposed to an event/repeating chore. False by default.
-    func addChore(name: String, priority: Int?, repetitionTime: Double?, date: Timestamp, description: String?, assignedTo: Array<UserInfo>, isChecklist: Bool?){
-        
-    }
-    
-    //Marks a chore as complete, also records who did the chore
-    func markComplete(user: UserInfo){
-        
-    }
-    //We need to make a chore log repository for this
-    //Also, for repeating chores, we will need to make it so that the chore is marked as "uncomplete" before it's due again.
-    
-    //We won't implement this until we decide how the chore proposal system should work
-    func getProposedChores(){
-        
     }
 }

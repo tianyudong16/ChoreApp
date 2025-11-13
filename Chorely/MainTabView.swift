@@ -5,47 +5,71 @@
 //  Created by Tian Yu Dong on 10/30/25.
 //
 
-// This file is to store all the different screens accessed through the task bar at the bottom
-
-
 import SwiftUI
 
 struct MainTabView: View {
+    
     let user: UserInfo
     @State private var selectedTab = 0
-    
-    // default initializer for previews
-    init(user: UserInfo = UserInfo(name: "", groupName: "")) {
-        self.user = user
-    }
+    @State private var members: [GroupMember] = []
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Home tab gets the user's values
-            HomeView(name: user.name, groupName: user.groupName)
-                .tabItem { Label("Home", systemImage: "house.fill") }
+            
+            // HOME TAB
+            HomeView(user: user, members: members)
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
                 .tag(0)
             
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+            // CHORES TAB
+            ChoresView(user: user)
+                .tabItem {
+                    Label("Chores", systemImage: "checkmark.circle.fill")
+                }
                 .tag(1)
             
-            CalendarView()
-                .tabItem { Label("Calendar", systemImage: "calendar") }
+            // CALENDAR TAB
+            CalendarView(user: user)
+                .tabItem {
+                    Label("Calendar", systemImage: "calendar")
+                }
                 .tag(2)
             
-            ProfileView()
-                .tabItem{
-                    Label("Profile", systemImage:"person.crop.circle")}
+            // PROFILE TAB
+            ProfileView(user: user)
+                .tabItem {
+                    Label("Profile", systemImage: "person.circle.fill")
+                }
                 .tag(3)
-                
         }
-        .tint(.green) // tint for selected screen
+        .onAppear {
+            startMemberListener()
+        }
+    }
+    
+    // MARK: - Listen to group members
+    private func startMemberListener() {
+        FirebaseInterface.shared.listenToGroupMembers(
+            groupID: user.groupID
+        ) { updatedMembers in
+            DispatchQueue.main.async {
+                self.members = updatedMembers
+            }
+        }
     }
 }
 
-
-
 #Preview {
-    MainTabView()
+    let previewUser = UserInfo(
+        uid: "123",
+        name: "Preview User",
+        email: "preview@demo.com",
+        groupID: "group1",
+        photoURL: "",
+        colorData: UIColor.systemPink.toData() ?? Data()
+    )
+    
+    return MainTabView(user: previewUser)
 }

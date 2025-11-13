@@ -6,95 +6,188 @@
 //
 
 import SwiftUI
-import FirebaseFirestore
-
-// Make a simple struct for navigation data
-struct UserInfo: Hashable {
-    let name: String
-    let groupName: String
-}
-
-let db = FirebaseInterface.shared.firestore
+import FirebaseAuth
 
 struct ContentView: View {
-    // This state variable will control what view is shown
-    // nil = Login Screen
-    // UserInfo = Home Screen
-    @State private var currentUser: UserInfo? = nil
     
-    // Original States (for login screen)
-    @State private var showTextFields = false
-    @State private var name = ""
-    @State private var groupName = ""
+    @State private var isRegistering = false
+    
+    // Login fields - NOW USING EMAIL
+    @State private var loginEmail = ""
+    @State private var loginPassword = ""
+    
+    // Registration fields
+    @State private var regName = ""
+    @State private var regEmail = ""
+    @State private var regPassword = ""
+    @State private var regGroupName = ""
+    @State private var regGroupPassword = ""
+    
+    @State private var errorMessage = ""
+    @State private var showError = false
+    
+    @State private var loggedInUser: UserInfo? = nil
     
     var body: some View {
-        // If a user is logged in, show the MainTabView
-        // Otherwise, show the login screen
-        if let user = currentUser {
-            MainTabView(user: user)
-        } else {
-            NavigationStack {
-                VStack {
-                    // App title centered at top
-                    Text("Welcome to Chorely")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 200)
-                    
-                    Spacer()
-                    
-                    // Get Started button
-                    Button("Get Started") {
-                        withAnimation {
-                            showTextFields.toggle()
-                        }
+        NavigationStack {
+            VStack(spacing: 25) {
+                
+                Text("Chorely")
+                    .font(.largeTitle.bold())
+                    .padding(.top, 40)
+                
+                if loggedInUser == nil {
+                    if isRegistering {
+                        registrationView
+                    } else {
+                        loginView
                     }
-                    .foregroundColor(Color(uiColor: .label))
-                    .frame(width: 200, height: 50)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary, lineWidth: 2))
-                    .background(Color(uiColor: .systemBackground))
-                    
-                    Spacer()
-                    
-                    // Text Fields
-                    if showTextFields {
-                        VStack(spacing: 20) {
-                            TextField("Enter your name", text: $name)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("Enter your group's name", text: $groupName)
-                                .textFieldStyle(.roundedBorder)
-                            
-                            // Let's Go Button
-                            Button("Let's Go!") {
-                                // Call firebase
-                                FirebaseInterface.shared.addUser(name: name, groupName: groupName)
-                                
-                                // Set the current user. This triggers the view swap to MainTabView
-                                withAnimation {
-                                    self.currentUser = UserInfo(name: name, groupName: groupName)
-                                }
-                            }
-                            .fontWeight(.bold)
-                            .italic()
-                            .disabled(name.isEmpty || groupName.isEmpty)
-                            
-
-                        }
-                        .padding(.horizontal, 40)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                    
-                    Spacer()
+                } else {
+                    MainTabView(user: loggedInUser!)
                 }
-                .padding()
+                
+                Spacer()
+            }
+            .padding()
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
             }
         }
     }
 }
 
+//
+// MARK: - LOGIN VIEW
+//
 
+extension ContentView {
+    
+    var loginView: some View {
+        VStack(spacing: 18) {
+            
+            // Changed to Email instead of Name
+            TextField("Email", text: $loginEmail)
+                .textFieldStyle(.roundedBorder)
+                .autocapitalization(.none)
+                .keyboardType(.emailAddress)
+            
+            SecureField("Password", text: $loginPassword)
+                .textFieldStyle(.roundedBorder)
+            
+            Button(action: loginUser) {
+                Text("Log In")
+                    .fontWeight(.bold)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+            .padding(.top, 10)
+            
+            Button("Create an account") {
+                isRegistering = true
+            }
+            .padding(.top, 5)
+        }
+    }
+    
+    func loginUser() {
+        // Simplified login - just use email + password directly
+        Auth.auth().signIn(withEmail: loginEmail, password: loginPassword) { authResult, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+                return
+            }
+            
+            guard let uid = authResult?.user.uid else { return }
+            
+            // Fetch user data from Firestore
+            FirebaseInterface.shared.fetchUser(uid: uid) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let user):
+                        self.loggedInUser = user
+                    case .failure(let error):
+                        errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                }
+            }
+        }
+    }
+}
+
+//
+// MARK: - SIGN UP VIEW
+//
+
+extension ContentView {
+    
+    var registrationView: some View {
+        VStack(spacing: 18) {
+            
+            TextField("Your Name", text: $regName)
+                .textFieldStyle(.roundedBorder)
+            
+            TextField("Email", text: $regEmail)
+                .textFieldStyle(.roundedBorder)
+                .autocapitalization(.none)
+                .keyboardType(.emailAddress)
+            
+            SecureField("Password", text: $regPassword)
+                .textFieldStyle(.roundedBorder)
+            
+            TextField("Group Name", text: $regGroupName)
+                .textFieldStyle(.roundedBorder)
+            
+            SecureField("Group Password", text: $regGroupPassword)
+                .textFieldStyle(.roundedBorder)
+            
+            Button(action: registerUser) {
+                Text("Sign Up")
+                    .fontWeight(.bold)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+            .padding(.top, 10)
+            
+            Button("Already have an account? Log in") {
+                isRegistering = false
+            }
+            .padding(.top, 5)
+        }
+    }
+    
+    func registerUser() {
+        FirebaseInterface.shared.signUp(
+            name: regName,
+            email: regEmail,
+            password: regPassword,
+            groupName: regGroupName,
+            groupPassword: regGroupPassword
+        ) { result in
+            
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let user):
+                    self.loggedInUser = user
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
+    }
+}
 
 #Preview {
     ContentView()

@@ -6,15 +6,17 @@
 //
 
 import SwiftUI
-
-//var ref: DatabaseReference! This line of code isn't working, putting this aside for now because it's late
-
-//ref = Database.database().reference()
+import FirebaseCore
 
 @main
 struct ChorelyApp: App {
+    
+    // Ensures Firebase is initialized exactly once
     init() {
-        _ = FirebaseInterface.shared
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+            print("Firebase configured in ChorelyApp.swift")
+        }
     }
     
     var body: some Scene {

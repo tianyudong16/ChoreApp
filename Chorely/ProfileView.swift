@@ -2,220 +2,383 @@
 //  ProfileView.swift
 //  Chorely
 //
-//  Created by Brooke Tanner on 11/9/25.
+// Created by Tian Yu Dong and Brooke Tanner
 //
 
 import SwiftUI
-import UserNotifications
+import PhotosUI
+import FirebaseAuth
 
 struct ProfileView: View {
-    @State private var name: String = "User's Name"
-    @State private var color: Color = .blue
-    @AppStorage("notificationsEnabled") private var notificationsOn = true
-    @State private var showPermsAlert = false
-    @State private var denied = false
+    
+    @State var user: UserInfo
+    
+    @State private var username: String
+    @State private var selectedColor: Color
+    
+    @State private var selectedPhoto: PhotosPickerItem? = nil
+    @State private var profileImage: Image? = nil
+    
     @State private var showJoinAlert = false
     @State private var showLeaveAlert = false
-    @State private var showImagePicker = false
-    @State private var profileImage: Image? = Image(systemName: "person.circle")
+    @State private var showAboutGroup = false
     
-    private func handleToggleChange(_ on: Bool) {
-        guard on else { return }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            DispatchQueue.main.async {
-                if !granted {
-                    self.notificationsOn = false
-                    self.showPermsAlert = true
-                }
-            }
-        }
-    }
-
-    private func refreshAuthStatus() {
-        UNUserNotificationCenter.current().getNotificationSettings { s in
-            DispatchQueue.main.async {
-                self.denied = (s.authorizationStatus == .denied)
-                if denied { self.notificationsOn = false }
-            }
-        }
-    }
-
-    private func openSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        UIApplication.shared.open(url)
+    init(user: UserInfo) {
+        _user = State(initialValue: user)
+        _username = State(initialValue: user.name)
+        _selectedColor = State(initialValue: user.color)
     }
     
     var body: some View {
-        NavigationStack{
-            VStack(spacing: 20){
-                
-                VStack{
-                    ZStack(alignment: .bottomTrailing){
-                        profileImage?
-                            .resizable()
-                            .scaledToFit()
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    
+                    // MARK: - PROFILE HEADER
+                    VStack(spacing: 15) {
+                        
+                        // Profile Picture
+                        PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                            ZStack {
+                                if let profileImage {
+                                    profileImage
+                                        .resizable()
+                                        .scaledToFill()
+                                } else if !user.photoURL.isEmpty {
+                                    AsyncImage(url: URL(string: user.photoURL)) { img in
+                                        img.resizable().scaledToFill()
+                                    } placeholder: {
+                                        ProgressView()
+                                    }
+                                } else {
+                                    Circle()
+                                        .fill(selectedColor)
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 40))
+                                                .foregroundColor(.white)
+                                        )
+                                }
+                            }
                             .frame(width: 100, height: 100)
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.gray, lineWidth: 1))
-                            .onTapGesture{showImagePicker.toggle() }
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundColor(.blue)
-                            .offset(x: 8, y: 4)
-                    }
-                    TextField("User's Name", text: $name)
-                        .font(.title2)
-                        .multilineTextAlignment(.center)
-                        .textInputAutocapitalization(.words)
-                        .padding(.horizontal)
-                    
-                    Circle()
-                        .fill(color)
-                        .frame(width: 40, height: 40)
-                        .overlay(Circle().stroke(.gray, lineWidth: 1))
-                    
-                    Button("Change Color"){
-                        //open color picker
-                    }
-                    .buttonStyle(.bordered)
-                }
-                
-                Divider()
-                
-                VStack(spacing: 15){
-                    NavigationLink(destination: EditProfileView(name: $name, color: $color)) {
-                        ProfileRow(icon: "square.and.pencil", label: "Edit")
-                    }
-                    
-                    Button{
-                        showJoinAlert = true
-                    } label: {
-                        ProfileRow(icon: "person.3", label: "Join Group")
-                    }
-                    .alert("Join Group", isPresented: $showJoinAlert){
-                        Button("Cancel", role: .cancel) {}
-                        Button("Join", role: .none) {}
-                    }message: {
-                        Text("Enter group code to join.")
-                    }
-                    
-                    NavigationLink(destination: AboutGroupView()){
-                        ProfileRow(icon: "info.circle", label: "About Group")
-                    }
-                    
-                    Button{
-                        showLeaveAlert = true
-                    } label: {
-                        ProfileRow(icon: "rectangle.portrait.and.arrow.right", label: "Leave Group", color: .red)
-                    }
-                    .alert("Leave Group?", isPresented: $showLeaveAlert){
-                        Button("Cancel", role: .cancel) {}
-                        Button("Leave", role: .destructive) {}
-                    }message: {
-                        Text("Are you sure you want to leave this group?")
-                    }
-                }
-                
-                .padding(.horizontal)
-                
-                VStack(spacing: 8){
-                    HStack {
-                        Label("Notifications", systemImage: notificationsOn ? "bell.fill" : "bell.slash.fill")
-                            .font(.headline)
-                        Spacer()
-                        StatusChip(isOn: notificationsOn)
-                    }
-                    .padding(.horizontal,24)
-                    
-                    Toggle("Enable", isOn: $notificationsOn)
-                        .padding(.horizontal, 24)
-                        .onChange(of: notificationsOn) {newVal in handleToggleChange(newVal)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white, lineWidth: 3)
+                            )
+                            .shadow(radius: 5)
                         }
+                        
+                        Text("click to edit")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        
+                        // Name with edit icon
+                        HStack {
+                            TextField("User's Name", text: $username)
+                                .font(.title2.bold())
+                                .multilineTextAlignment(.center)
+                            Image(systemName: "pencil")
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.top, 30)
+                    .padding(.bottom, 20)
+                    
+                    // MARK: - MENU OPTIONS
+                    VStack(spacing: 0) {
+                        
+                        // Edit Section with Color Picker
+                        NavigationLink {
+                            EditProfileView(username: $username, selectedColor: $selectedColor, onSave: {
+                                saveProfileChanges()
+                            })
+                        } label: {
+                            HStack(spacing: 15) {
+                                Image(systemName: "paintpalette")
+                                    .font(.title3)
+                                    .foregroundColor(.blue)
+                                    .frame(width: 30)
+                                
+                                Text("Edit")
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                // Show current color
+                                Circle()
+                                    .fill(selectedColor)
+                                    .frame(width: 20, height: 20)
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 15)
+                            .background(selectedColor.opacity(0.2))
+                        }
+                        
+                        Divider().padding(.leading, 60)
+                        
+                        // Join Group
+                        menuItem(
+                            icon: "person.2.fill",
+                            title: "Join Group",
+                            showDisclosure: false
+                        ) {
+                            showJoinAlert = true
+                        }
+                        
+                        Divider().padding(.leading, 60)
+                        
+                        // About Group
+                        menuItem(
+                            icon: "info.circle",
+                            title: "About Group",
+                            showDisclosure: false
+                        ) {
+                            showAboutGroup = true
+                        }
+                        
+                        Divider().padding(.leading, 60)
+                        
+                        // Leave Group (Red)
+                        menuItem(
+                            icon: "rectangle.portrait.and.arrow.right",
+                            title: "Leave Group",
+                            showDisclosure: false,
+                            titleColor: .red
+                        ) {
+                            showLeaveAlert = true
+                        }
+                        
+                        Divider().padding(.leading, 60)
+                        
+                        // Notifications Toggle
+                        HStack(spacing: 15) {
+                            Image(systemName: "bell.fill")
+                                .font(.title3)
+                                .foregroundColor(.blue)
+                                .frame(width: 30)
+                            
+                            Text("Notifications")
+                                .font(.body)
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: .constant(true))
+                                .labelsHidden()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 15)
+                        
+                        Divider().padding(.leading, 60)
+                        
+                        // Log Out (Red)
+                        menuItem(
+                            icon: "rectangle.portrait.and.arrow.right.fill",
+                            title: "LOG OUT",
+                            showDisclosure: false,
+                            titleColor: .red
+                        ) {
+                            signOut()
+                        }
+                    }
+                    .background(Color(.systemBackground))
+                    
+                    Spacer(minLength: 100)
                 }
+            }
+            .background(Color(.systemGroupedBackground))
+            .alert("Join Group", isPresented: $showJoinAlert) {
+                TextField("Group Code", text: .constant(""))
+                Button("Join", action: {})
+                Button("Cancel", role: .cancel, action: {})
+            } message: {
+                Text("Enter the group code to join")
+            }
+            .alert("Leave Group", isPresented: $showLeaveAlert) {
+                Button("Leave", role: .destructive, action: {})
+                Button("Cancel", role: .cancel, action: {})
+            } message: {
+                Text("Are you sure you want to leave your group?")
+            }
+            .sheet(isPresented: $showAboutGroup) {
+                aboutGroupSheet()
+            }
+            .onChange(of: selectedPhoto) { _, newPhoto in
+                guard let newPhoto = newPhoto else { return }
+                loadAndUploadPhoto(item: newPhoto)
+            }
+            .onChange(of: username) { _, _ in
+                saveProfileChanges()
+            }
+            .onChange(of: selectedColor) { _, _ in
+                saveProfileChanges()
+            }
+            .navigationBarHidden(true)
+        }
+    }
+    
+    // MARK: - MENU ITEM
+    @ViewBuilder
+    func menuItem(
+        icon: String,
+        title: String,
+        showDisclosure: Bool,
+        backgroundColor: Color = .clear,
+        titleColor: Color = .primary,
+        action: @escaping () -> Void = {}
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 15) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                    .frame(width: 30)
                 
+                Text(title)
+                    .font(.body)
+                    .foregroundColor(titleColor)
                 
                 Spacer()
                 
-                Button{
-                    print("Log out pressed")
-                }label:{
-                    Text("Log Out")
-                        .font(.headline)
-                        .foregroundColor(.red)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: 10).stroke(.red))
+                if showDisclosure {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
-                .padding(.horizontal)
             }
-            .navigationTitle("Profile")
-            .onAppear { refreshAuthStatus() }
-            .alert("Notifications are disabled in Settings", isPresented: $showPermsAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Open Settings") { openSettings() }
-            } message: {
-                Text("To enable notifications, allow them in iOS Settings.")
-            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 15)
+            .background(backgroundColor)
         }
     }
-}
-
-struct ProfileRow: View{
-    let icon: String
-    let label: String
-    var color: Color = .primary
     
-    var body: some View{
-        HStack{
-            Image(systemName: icon)
-                .foregroundColor(color)
-            Text(label)
-                .foregroundColor(color)
-                .font(.headline)
-            Spacer()
-            Image(systemName: "chevron.right")
-                .foregroundColor(.gray)
+    // MARK: - ABOUT GROUP SHEET
+    @ViewBuilder
+    func aboutGroupSheet() -> some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text("Group Information")
+                    .font(.title2.bold())
+                    .padding(.top)
+                
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Show group info, true members, and also their group code")
+                        .foregroundColor(.gray)
+                        .padding()
+                }
+                
+                Spacer()
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        showAboutGroup = false
+                    }
+                }
+            }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
+    }
+    
+    // MARK: - HELPER FUNCTIONS
+    
+    private func saveProfileChanges() {
+        user.name = username
+        let newColorData = UIColor(selectedColor).toData()
+        user.colorData = newColorData ?? user.colorData
+        
+        FirebaseInterface.shared.updateUserName(
+            uid: user.uid,
+            groupID: user.groupID,
+            newName: username
+        )
+        FirebaseInterface.shared.updateUserColor(
+            uid: user.uid,
+            groupID: user.groupID,
+            color: selectedColor
+        )
+    }
+    
+    private func loadAndUploadPhoto(item: PhotosPickerItem) {
+        Task {
+            guard let data = try? await item.loadTransferable(type: Data.self),
+                  let uiImage = UIImage(data: data) else {
+                return
+            }
+            
+            self.profileImage = Image(uiImage: uiImage)
+            
+            FirebaseInterface.shared.uploadUserPhoto(
+                uid: user.uid,
+                groupID: user.groupID,
+                image: uiImage
+            ) { result in
+                if case .success(let url) = result {
+                    user.photoURL = url
+                }
+            }
+        }
+    }
+    
+    private func signOut() {
+        try? Auth.auth().signOut()
     }
 }
 
-struct StatusChip: View {
-    let isOn: Bool
-    var body: some View{
-        Text(isOn ? "ON" : "OFF")
-            .font(.caption).bold()
-            .padding(.horizontal,10).padding(.vertical,4)
-            .background((isOn ? Color.green : Color.red).opacity(0.18))
-            .foregroundStyle(isOn ? .green : .red)
-            .clipShape(Capsule())
-            .accessibilityLabel("Notifications \(isOn ? "On" : "Off")")
-    }
-}
-
-
-struct EditProfileView: View{
-    @Binding var name: String
-    @Binding var color: Color
-    var body: some View{
-        Form{
-            TextField("Name", text: $name)
-            ColorPicker("Select Color", selection: $color)
+// MARK: - EDIT PROFILE VIEW
+struct EditProfileView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    @Binding var username: String
+    @Binding var selectedColor: Color
+    var onSave: () -> Void
+    
+    var body: some View {
+        Form {
+            Section("Name") {
+                TextField("Your Name", text: $username)
+                    .textInputAutocapitalization(.words)
+            }
+            
+            Section("Color") {
+                ColorPicker("Select your color", selection: $selectedColor, supportsOpacity: false)
+                
+                HStack {
+                    Text("Preview")
+                    Spacer()
+                    Circle()
+                        .fill(selectedColor)
+                        .frame(width: 40, height: 40)
+                }
+            }
         }
         .navigationTitle("Edit Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    onSave()
+                    dismiss()
+                }
+            }
         }
-    }
-
-struct AboutGroupView: View{
-    var body: some View{
-        Text("Group Info and Members")
-            .navigationTitle("About Group")
     }
 }
 
-
 #Preview {
-    ProfileView()
+    ProfileView(
+        user: UserInfo(
+            uid: "123",
+            name: "Preview User",
+            email: "test@email.com",
+            groupID: "group1",
+            photoURL: "",
+            colorData: UIColor.systemPink.toData() ?? Data()
+        )
+    )
 }

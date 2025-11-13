@@ -8,168 +8,285 @@
 import SwiftUI
 
 struct CalendarView: View {
-    @State private var date = Date.now // This controls the MONTH being viewed
-    @State private var selectedDate: Date? = nil // This stores the DAY the user taps
-    @State private var days: [Date] = []
     
-    // This color will be set by the ColorPicker
-    @State private var color: Color = .blue
+    let user: UserInfo
     
-    let daysOfWeek = Date.capitalizedFirstLetterOfWeekdays // calls from the DateAndExtension file
-    let columns = Array(repeating: GridItem(.flexible()), count: 7)
+    @State private var selectedDate: Date = Date()
+    @State private var currentMonthOffset = 0
+    @State private var viewMode: CalendarViewMode = .group
+    
+    enum CalendarViewMode {
+        case group, roommate, personal
+    }
     
     var body: some View {
-        NavigationView{
-            VStack {
+        NavigationStack {
+            VStack(spacing: 0) {
                 
-                CalendarHeaderView(date: $date)
+                // MARK: - CALENDAR TITLE
+                Text("CALENDAR")
+                    .font(.title2.bold())
+                    .padding(.top, 20)
+                    .padding(.bottom, 10)
                 
-                // The ColorPicker is right below the header for easy access
-                LabeledContent("Calendar Color") {
-                    ColorPicker("", selection: $color, supportsOpacity: false)
+                // MARK: - VIEW MODE PICKER
+                HStack(spacing: 20) {
+                    viewModeButton(mode: .group, title: "Group", icon: "person.3.fill")
+                    viewModeButton(mode: .roommate, title: "Roommate", icon: "person.2.fill")
+                    viewModeButton(mode: .personal, title: "Personal", icon: "person")
                 }
-                .padding(.horizontal) // Add some padding to match the calendar
-                .padding(.bottom, 5)   // Add a little space below it
+                .padding(.horizontal)
+                .padding(.bottom, 15)
                 
-                
-                // Weekday Headers
-                // This will update its color when the picker changes
-                HStack {
-                    ForEach(daysOfWeek.indices, id: \.self) { index in
-                        Text(daysOfWeek[index])
-                            .fontWeight(.black)
-                            .foregroundStyle(color) // Uses the @State color
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .padding(.bottom, 5)
-                
-                
-                // --- Calendar Grid ---
-                LazyVGrid(columns: columns) {
-                    ForEach(days, id: \.self) { day in
-                        
-                        // Pre-calculate date states
-                        let isToday = day.startOfDay == Date.now.startOfDay
-                        let isSelected = day.startOfDay == selectedDate?.startOfDay
-                        let isCurrentMonth = day.monthInt == date.monthInt
-                        
-                        if !isCurrentMonth {
-                            // This creates an empty, invisible placeholder
-                            Text("")
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                                .background(Color.clear) // Keep non-month days blank
-                        } else {
-                            // This is a tappable day in the current month
-                            Text(day.formatted(.dateTime.day()))
-                                .fontWeight(.bold)
-                            // Text is white if it's selected OR today
-                                .foregroundStyle(isSelected || isToday ? .white : .secondary)
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                            // Background uses the @State color
-                                .background(
-                                    Circle()
-                                        .foregroundStyle(
-                                            // Priority 1: Highlight selected date (strong)
-                                            isSelected ? color.opacity(0.8) :
-                                                
-                                                // Priority 2: Highlight today's date (strong, contrasting)
-                                            isToday ? .red.opacity(0.8) :
-                                                
-                                                // Priority 3: Default faint circle for all other days
-                                            color.opacity(0.3)
-                                        )
-                                )
-                                .onTapGesture {
-                                    // Set the selected date to this day
-                                    selectedDate = day.startOfDay
-                                }
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // MARK: - MONTH NAVIGATION
+                        HStack {
+                            Button(action: { currentMonthOffset -= 1 }) {
+                                Image(systemName: "chevron.left")
+                                    .font(.title3)
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Spacer()
+                            
+                            Text(monthYearString(for: getCurrentMonth()))
+                                .font(.title3.bold())
+                            
+                            Spacer()
+                            
+                            Button(action: { currentMonthOffset += 1 }) {
+                                Image(systemName: "chevron.right")
+                                    .font(.title3)
+                                    .foregroundColor(.blue)
+                            }
                         }
+                        .padding(.horizontal)
+                        .padding(.bottom, 10)
+                        
+                        // MARK: - WEEKDAY LABELS
+                        HStack(spacing: 0) {
+                            ForEach(["S","M","T","W","T","F","S"], id: \.self) { day in
+                                Text(day)
+                                    .font(.caption.bold())
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .padding(.horizontal)
+                        
+                        // MARK: - CALENDAR GRID
+                        let days = extractDates(for: getCurrentMonth())
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
+                            
+                            ForEach(days) { dayValue in
+                                
+                                if dayValue.day == -1 {
+                                    Rectangle()
+                                        .fill(Color.clear)
+                                        .frame(height: 50)
+                                } else {
+                                    dayCell(dayValue)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        
+                        Divider()
+                            .padding(.vertical, 15)
+                        
+                        // MARK: - WEEKLY CHORE STATS SECTION
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Weekly Chore Stats")
+                                .font(.headline)
+                                .padding(.horizontal)
+                            
+                            VStack(spacing: 10) {
+                                weeklyStatsCard(
+                                    members: [
+                                        ("Emily", 8, Color(uiColor: .systemPink)),
+                                        ("Alex", 6, Color(uiColor: .systemBlue)),
+                                        ("Jordan", 7, Color(uiColor: .systemGreen)),
+                                        ("Sam", 5, Color(uiColor: .systemOrange))
+                                    ]
+                                )
+                            }
+                            .padding(.horizontal)
+                        }
+                        .padding(.bottom, 20)
                     }
                 }
-                NavigationLink {
-                    DailyTasksView()
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill")
-                        Text("Today’s Chores")
-                            .fontWeight(.semibold)
+            }
+            .navigationBarHidden(true)
+        }
+    }
+    
+    // MARK: - VIEW MODE BUTTON
+    @ViewBuilder
+    func viewModeButton(mode: CalendarViewMode, title: String, icon: String) -> some View {
+        Button {
+            viewMode = mode
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                Text(title)
+                    .font(.caption)
+            }
+            .foregroundColor(viewMode == mode ? .blue : .gray)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(viewMode == mode ? Color.blue : Color.gray.opacity(0.3), lineWidth: 2)
+            )
+        }
+    }
+    
+    // MARK: - DAY CELL
+    @ViewBuilder
+    func dayCell(_ dayValue: DayValue) -> some View {
+        
+        NavigationLink(destination: ChoresView(user: user, selectedDate: dayValue.date)) {
+            
+            Text("\(dayValue.day)")
+                .font(.callout)
+                .fontWeight(.medium)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(
+                    Circle()
+                        .fill(
+                            isSameDay(dayValue.date, Date()) ? Color.red : // Today is Red
+                            isSameDay(dayValue.date, selectedDate) ? Color.blue.opacity(0.8) : // Selected is Blue
+                            Color.blue.opacity(0.2) // All other dates have light blue background
+                        )
+                )
+                .foregroundColor(
+                    isSameDay(dayValue.date, Date()) || isSameDay(dayValue.date, selectedDate) ? .white : .primary
+                )
+        }
+        .onTapGesture {
+            selectedDate = dayValue.date
+        }
+    }
+    
+    // MARK: - WEEKLY STATS CARD
+    @ViewBuilder
+    func weeklyStatsCard(members: [(String, Int, Color)]) -> some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Completion Level")
+                .font(.subheadline.bold())
+            
+            VStack(spacing: 12) {
+                ForEach(members, id: \.0) { member in
+                    HStack(spacing: 12) {
+                        // User indicator circle
+                        Circle()
+                            .fill(member.2)
+                            .frame(width: 30, height: 30)
+                            .overlay(
+                                Text(String(member.0.prefix(1)))
+                                    .font(.caption.bold())
+                                    .foregroundColor(.white)
+                            )
+                        
+                        // Name
+                        Text(member.0)
+                            .font(.body)
+                            .frame(width: 70, alignment: .leading)
+                        
+                        // Progress bar
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                // Background
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.gray.opacity(0.2))
+                                
+                                // Progress
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(member.2)
+                                    .frame(width: geometry.size.width * (CGFloat(member.1) / 10.0))
+                            }
+                        }
+                        .frame(height: 8)
+                        
+                        // Count
+                        Text("\(member.1)")
+                            .font(.caption.bold())
+                            .foregroundColor(.gray)
+                            .frame(width: 20)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(.blue.opacity(0.12))
-                    .foregroundStyle(.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .padding(.top, 8)
-            }
-            .padding()
-            .onAppear {
-                days = date.calendarDisplayDays
-            }
-            .onChange(of: date) {
-                days = date.calendarDisplayDays
-            }
-            .navigationTitle("Calendar")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-// HELPER VIEW for the header
-struct CalendarHeaderView: View {
-    @Binding var date: Date
-    private let calendar = Calendar.current
-    
-    var body: some View {
-        HStack {
-            // "Previous Month" Button
-            Button(action: {
-                changeMonth(by: -1)
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.title2)
-                    .padding()
-            }
-            
-            Spacer()
-            
-            // Month and Year Title
-            Text(monthYearFormatter.string(from: date))
-                .font(.title.bold())
-                .foregroundColor(.blue)
-            
-            Spacer()
-            
-            // "Next Month" Button
-            Button(action: {
-                changeMonth(by: 1)
-            }) {
-                Image(systemName: "chevron.right")
-                    .font(.title2)
-                    .padding()
             }
         }
-        .padding(.bottom, 10)
-    
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemGray6))
+        )
     }
     
-    // Helper function to change the current month
-    private func changeMonth(by value: Int) {
-        if let newDate = calendar.date(byAdding: .month, value: value, to: date) {
-            date = newDate
-        }
+    // MARK: - HELPER FUNCTIONS
+    
+    private func getCurrentMonth() -> Date {
+        Calendar.current.date(byAdding: .month, value: currentMonthOffset, to: Date())!
     }
     
-    // Formatter for displaying "November 2025"
-    private var monthYearFormatter: DateFormatter {
+    private func monthYearString(for date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter
+        formatter.dateFormat = "LLLL yyyy"
+        return formatter.string(from: date)
+    }
+    
+    private func isSameDay(_ d1: Date, _ d2: Date) -> Bool {
+        Calendar.current.isDate(d1, inSameDayAs: d2)
     }
 }
 
+struct DayValue: Identifiable {
+    let id = UUID()
+    let day: Int
+    let date: Date
+}
+
+extension CalendarView {
+    
+    func extractDates(for month: Date) -> [DayValue] {
+        let calendar = Calendar.current
+        
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: month))!
+        
+        let range = calendar.range(of: .day, in: .month, for: startOfMonth)!
+        let daysInMonth = range.count
+        
+        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
+        
+        var days: [DayValue] = []
+        
+        for _ in 1..<firstWeekday {
+            days.append(DayValue(day: -1, date: Date()))
+        }
+        
+        for day in 1...daysInMonth {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
+                days.append(DayValue(day: day, date: date))
+            }
+        }
+        
+        return days
+    }
+}
 
 #Preview {
-    CalendarView()
+    CalendarView(
+        user: UserInfo(
+            uid: "123",
+            name: "Preview User",
+            email: "test@email.com",
+            groupID: "group1",
+            photoURL: "",
+            colorData: UIColor.systemPink.toData() ?? Data()
+        )
+    )
 }
