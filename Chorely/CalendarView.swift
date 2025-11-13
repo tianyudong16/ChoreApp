@@ -88,7 +88,7 @@ struct CalendarView: View {
                     }
                 }
                 NavigationLink {
-                    DailyTasksView()
+                    ChoresView()
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "checkmark.circle.fill")

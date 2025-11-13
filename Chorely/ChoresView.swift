@@ -1,5 +1,5 @@
 //
-//  DailyTaskView.swift
+//  ChoresView.swift
 //  Chorely
 //
 //  Created by Brooke Tanner on 11/11/25.
@@ -9,7 +9,7 @@
 
 import SwiftUI
 
-public struct DailyTasksView: View {
+public struct ChoresView: View {
     // MARK: - UI state
     @State private var selectedFilter: TaskFilter = .all
     @State private var showFilterSheet = false
@@ -208,5 +208,5 @@ private struct Badge: View {
 
 
 #Preview {
-    DailyTasksView()
+    ChoresView()
 }
