@@ -10,7 +10,6 @@
 import SwiftUI
 
 public struct DailyTasksView: View {
-    // MARK: - UI state
     @State private var selectedFilter: TaskFilter = .all
     @State private var showFilterSheet = false
 
@@ -23,7 +22,7 @@ public struct DailyTasksView: View {
                 // Title and filter button
                 HStack {
                     Button {
-                        dismiss()    // 👈 takes you back to the previous screen
+                        dismiss()
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.title2)

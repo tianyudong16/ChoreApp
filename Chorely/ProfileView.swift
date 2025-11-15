@@ -14,6 +14,7 @@ struct ProfileView: View {
     @AppStorage("notificationsEnabled") private var notificationsOn = true
     @State private var showPermsAlert = false
     @State private var denied = false
+    @State private var showLogOutAlert = false
     @State private var showJoinAlert = false
     @State private var showLeaveAlert = false
     @State private var showImagePicker = false
@@ -123,21 +124,17 @@ struct ProfileView: View {
                         Label("Notifications", systemImage: notificationsOn ? "bell.fill" : "bell.slash.fill")
                             .font(.headline)
                         Spacer()
-                        StatusChip(isOn: notificationsOn)
+                        Toggle(" ", isOn: $notificationsOn)
+                            .padding(.horizontal, 24)
                     }
                     .padding(.horizontal,24)
                     
-                    Toggle("Enable", isOn: $notificationsOn)
-                        .padding(.horizontal, 24)
-                        .onChange(of: notificationsOn) {newVal in handleToggleChange(newVal)
                         }
                 }
                 
-                
-                Spacer()
-                
+                        
                 Button{
-                    print("Log out pressed")
+                    showLogOutAlert = true
                 }label:{
                     Text("Log Out")
                         .font(.headline)
@@ -146,6 +143,18 @@ struct ProfileView: View {
                         .frame(maxWidth: .infinity)
                         .background(RoundedRectangle(cornerRadius: 10).stroke(.red))
                 }
+                .alert("Log Out?", isPresented: $showLogOutAlert){
+                    Button("Cancel", role: .cancel) {}
+                    Button("Log Out", role: .destructive){}
+                }message: {
+                    Text("Are you sure you want to log out?")
+                }
+            NavigationView{
+                NavigationLink(destination: HomeView(name: "", groupName: "")){
+                    
+                }
+            }
+                .padding(.vertical)
                 .padding(.horizontal)
             }
             .navigationTitle("Profile")
@@ -158,7 +167,7 @@ struct ProfileView: View {
             }
         }
     }
-}
+
 
 struct ProfileRow: View{
     let icon: String
