@@ -40,13 +40,19 @@ class FirebaseInterface {
     
     //Adds a new user to the repository with the provided properties
     //TO DO: make it so that the color is different for each user in the group
-    func addUser(name: String, groupName: String) {
+    func addUser(name: String, email: String, color: String, groupKey: Int, groupName: String, nickName: String, password: String, roommatesNames: [String], roommates: Int) {
         print("Attempting to add user: \(name), \(groupName)")
         
         db.collection("Users").addDocument(data: [
             "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
-            "color": "blue",//placeholder, we will write code to ensure each group member has a unique color
+            "color": color,//no longer a placeholder but not sure if using String for color should work
+            "groupKey": groupKey,
+            
             "groupName": groupName,
+            "nickname": nickName,
+            "password": password,
+            "roommate names": roommatesNames,
+            "roommates": roommates
         ]) { err in
             if let err = err {
                 print("Error adding document: \(err)")
@@ -55,7 +61,8 @@ class FirebaseInterface {
             }
         }
     }
-    
+
+
     //Signs in the user using the given name and password
     func signIn(name: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
         auth.signIn(withEmail: <#T##String#>, password: <#T##String#>){result, error in
