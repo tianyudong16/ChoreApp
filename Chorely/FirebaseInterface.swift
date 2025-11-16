@@ -61,7 +61,29 @@ class FirebaseInterface {
             }
         }
     }
+    func editUser(documentId: String, name: String, email: String, color: String, groupKey: Int, groupName: String, nickName: String, password: String, roommatesNames: [String], roommates: Int, completion: @escaping (Bool) -> Void){
+        db.collection("Users").document(documentId).updateData([
+            "Name": name,
+            "color": color,
+            "groupKey": groupKey,
+            
+            "groupName": groupName,
+            "nickname": nickName,
+            "password": password,
+            "roommate names": roommatesNames,
+            "roommates": roommates
+        ]) { err in
+            if let err = err {
+                print("Error adding document: \(err)")
+                completion(false)
+                return
+            }
+            
+            completion(true)
+            print("User added successfully!")
+        }
 
+    }
 
     //Signs in the user using the given name and password
     func signIn(name: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
