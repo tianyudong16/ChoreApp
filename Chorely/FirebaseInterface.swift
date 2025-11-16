@@ -151,7 +151,7 @@ func addChore(checklist: Bool, date: String, day: String, description: String, m
         "TimeLength": TimeLength,
         "assignedUsers":assignedUsers,
         "completed": completed,
-        "groupKey": groupKey,
+        "groupKey": groupKey
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
@@ -159,4 +159,33 @@ func addChore(checklist: Bool, date: String, day: String, description: String, m
             print("Chore added successfully!")
         }
     }
+}
+
+func editChore(documentId: String, checklist: Bool, date: String, day: String, description: String, monthlyrepeatbydate: Bool, monthlyrepeatbyweek: String, Name: String, PriorityLevel: String, RepetitionTime: String, TimeLength: Int, assignedUsers:[String], completed: Bool, groupKey: Int, completion: @escaping (Bool) -> Void){
+    db.collection("chores").document(documentId).updateData([
+        "Checklist": checklist,
+        "Date": date,
+        "Day": day,
+        "Description": description,
+        "MonthlyRepeatByDate": monthlyrepeatbydate,
+        "MonthlyRepeatByWeek": monthlyrepeatbyweek,
+        "Name": Name,
+        "PriorityLevel": PriorityLevel,
+        "RepetitionTime": RepetitionTime,
+        "TimeLength": TimeLength,
+        "assignedUsers":assignedUsers,
+        "completed": completed,
+        "groupKey": groupKey
+    ])  { err in
+        if let  err = err {
+            print("Error editimg chore: \(err)")
+            completion(false)
+            return
+        }
+        
+        print("Chore edited successfully!")
+        
+        completion(true)
+    }
+    
 }
