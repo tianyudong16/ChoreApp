@@ -9,6 +9,8 @@ import SwiftUI
 import UserNotifications
 
 struct ProfileView: View {
+    let onLogout: () -> Void
+    
     @State private var name: String = "User's Name"
     @State private var color: Color = .blue
     @AppStorage("notificationsEnabled") private var notificationsOn = true
@@ -48,9 +50,9 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationStack{
-            VStack(spacing: 20){
+            VStack(spacing: 30){
                 
-                VStack{
+                VStack(spacing: 15){
                     ZStack(alignment: .bottomTrailing){
                         profileImage?
                             .resizable()
@@ -64,30 +66,23 @@ struct ProfileView: View {
                             .foregroundColor(.blue)
                             .offset(x: 8, y: 4)
                     }
-                    TextField("User's Name", text: $name)
-                        .font(.title2)
-                        .multilineTextAlignment(.center)
-                        .textInputAutocapitalization(.words)
-                        .padding(.horizontal)
-                    
-                    Circle()
-                        .fill(color)
-                        .frame(width: 40, height: 40)
-                        .overlay(Circle().stroke(.gray, lineWidth: 1))
-                    
-                    Button("Change Color"){
-                        //open color picker
-                    }
-                    .buttonStyle(.bordered)
+                   
+                        TextField("User's Name", text: $name)
+                            .font(.title2)
+                            .multilineTextAlignment(.center)
+                            .textInputAutocapitalization(.words)
+                            .padding(.horizontal)
+                        
+                
+                        ColorPicker("", selection: $color)
+                            .padding(.vertical)
+                            .labelsHidden()
+                            .scaleEffect(CGSize(width:2.5, height:2.5))
                 }
                 
                 Divider()
                 
                 VStack(spacing: 15){
-                    NavigationLink(destination: EditProfileView(name: $name, color: $color)) {
-                        ProfileRow(icon: "square.and.pencil", label: "Edit")
-                    }
-                    
                     Button{
                         showJoinAlert = true
                     } label: {
@@ -119,7 +114,7 @@ struct ProfileView: View {
                 
                 .padding(.horizontal)
                 
-                VStack(spacing: 8){
+                VStack(spacing: 15){
                     HStack {
                         Label("Notifications", systemImage: notificationsOn ? "bell.fill" : "bell.slash.fill")
                             .font(.headline)
@@ -132,23 +127,26 @@ struct ProfileView: View {
                         }
                 }
                 
-                        
-                Button{
-                    showLogOutAlert = true
-                }label:{
-                    Text("Log Out")
-                        .font(.headline)
-                        .foregroundColor(.red)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: 10).stroke(.red))
+            .padding(.vertical)
+            Button {
+                showLogOutAlert = true
+            } label: {
+                Text("Log Out")
+                    .font(.headline)
+                    .foregroundColor(.red)
+                    .padding()
+                    .frame(maxWidth: 375)
+                    .background(RoundedRectangle(cornerRadius: 8).stroke(.red))
+            }
+            .alert("Log Out?", isPresented: $showLogOutAlert) {
+                Button("Cancel", role: .cancel) {}
+
+                Button("Log Out", role: .destructive) {
+                    onLogout()    
                 }
-                .alert("Log Out?", isPresented: $showLogOutAlert){
-                    Button("Cancel", role: .cancel) {}
-                    Button("Log Out", role: .destructive){}
-                }message: {
-                    Text("Are you sure you want to log out?")
-                }
+            } message: {
+                Text("Are you sure you want to log out?")
+            }
             NavigationView{
                 NavigationLink(destination: HomeView(name: "", groupName: "")){
                     
@@ -226,5 +224,5 @@ struct AboutGroupView: View{
 
 
 #Preview {
-    ProfileView()
+    ProfileView(onLogout: {})
 }
