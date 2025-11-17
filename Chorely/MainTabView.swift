@@ -12,11 +12,13 @@ import SwiftUI
 
 struct MainTabView: View {
     let user: UserInfo
+    let onLogout: () -> Void
     @State private var selectedTab = 0
     
     // default initializer for previews
-    init(user: UserInfo = UserInfo(name: "", groupName: "")) {
+    init(user: UserInfo = UserInfo(name: "", groupName: ""),onLogout: @escaping () -> Void = {}) {
         self.user = user
+        self.onLogout = onLogout
     }
     
     var body: some View {
@@ -30,7 +32,7 @@ struct MainTabView: View {
                 .tabItem { Label("Calendar", systemImage: "calendar") }
                 .tag(1)
             
-            ProfileView()
+            ProfileView(onLogout: onLogout)
                 .tabItem{
                     Label("Profile", systemImage:"person.crop.circle")}
                 .tag(2)
