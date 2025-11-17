@@ -7,10 +7,6 @@
 
 import SwiftUI
 
-//var ref: DatabaseReference! This line of code isn't working, putting this aside for now because it's late
-
-//ref = Database.database().reference()
-
 @main
 struct ChorelyApp: App {
     init() {
