@@ -4,6 +4,7 @@
 //
 //  Created by Tian Yu Dong on 10/30/25.
 //
+//  Used a tutorial on Youtube on implementing a calendar view
 
 import SwiftUI
 
@@ -45,7 +46,7 @@ struct CalendarView: View {
                 .padding(.bottom, 5)
                 
                 
-                // --- Calendar Grid ---
+                // Shows the actual calendar
                 LazyVGrid(columns: columns) {
                     ForEach(days, id: \.self) { day in
                         
