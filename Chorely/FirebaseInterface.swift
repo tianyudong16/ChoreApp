@@ -77,6 +77,7 @@ class FirebaseInterface {
     
     func editUser(documentId: String, name: String, email: String, color: String, groupKey: Int, groupName: String, nickName: String, password: String, roommatesNames: [String], roommates: Int, completion: @escaping (Bool) -> Void){
         db.collection("Users").document(documentId).updateData([
+            "Email": email,
             "Name": name,
             "color": color,
             "groupKey": groupKey,
@@ -110,17 +111,6 @@ class FirebaseInterface {
         }
     }
     
-    //Note: we will need to add this functionality to addUser, and change the surrounding code of the ContentView page to support error catching.
-    func signUp(name: String, email: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
-        auth.createUser(withEmail: email, password: password){result, error in
-            if let error = error{
-                completion(.failure(error))
-            } else if let user = result?.user {
-                completion(.success(user))
-            }
-        }
-    }
-        
     func signOut() {
         do {
             try auth.signOut()
@@ -128,25 +118,6 @@ class FirebaseInterface {
         } catch {
             print("error signing out :(")
         }
-    }
-        
-    //TO DO: add functions that let a user change their password, name, and other attributes.
-    
-    //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
-    func getChores(){
-        
-    }
-    
-    //Adds a new chore to the repository with the following properties:
-    //name: String with the name
-    //priority: 1 = low, 2 = med, 3 = high. Never type anything that's not these 3 numbers
-    //repetitionTime: how often the chore is repeated (weekly, daily, ect). (To be honest, I don't know how we would represent this)
-    //date: When the chore is due to be done (if not repeated).
-    //description: a string containing the description
-    //assignedTo: the users that the chore is assigned to. Should contain at least one user
-    //isChecklist: whether or not the chore is a checklist chore as opposed to an event/repeating chore. False by default.
-    func addChore(name: String, priority: Int?, repetitionTime: Double?, date: Timestamp, description: String?, assignedTo: Array<UserInfo>, isChecklist: Bool?){
-        
     }
     
     //Marks a chore as complete, also records who did the chore
@@ -162,6 +133,7 @@ class FirebaseInterface {
     }
 }
 
+//Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
 func getChore(documentId:String, completion: @escaping ([String: Any]?) -> Void)
 {
     db.collection("chores").document(documentId).getDocument{snapshot,
