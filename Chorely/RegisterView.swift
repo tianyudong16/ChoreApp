@@ -12,7 +12,7 @@ struct RegisterView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var groupName = ""
-    @StateObject private var viewModel = ContentViewModel()
+    @StateObject private var viewModel = LoginViewModel()
     
     var body: some View {
         VStack {

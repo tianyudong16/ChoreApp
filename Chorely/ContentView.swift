@@ -1,5 +1,5 @@
 //
-//  ContentView.swift
+//  LoginView.swift
 //  Chorely
 //
 //  Created by Tian Yu Dong on 10/30/25.
@@ -18,7 +18,7 @@ let db = FirebaseInterface.shared.firestore
 
 //I (Milo) added a separate class called ContentViewModel,to help keep the wordy code from clogging up the ContentView code
 @MainActor
-final class ContentViewModel: ObservableObject {
+final class LoginViewModel: ObservableObject {
     
     //I'm not calling createUser addUser to avoid confusion
     func createUser(name: String, email: String, groupName: String, password: String) {
@@ -48,12 +48,12 @@ final class ContentViewModel: ObservableObject {
     }
 }
 
-struct ContentView: View {
+struct LoginView: View {
     // This state variable will control what view is shown
     // nil = Login Screen
     // UserInfo = Home Screen
     @State private var currentUser: UserInfo? = nil
-    @State private var viewModel = ContentViewModel()
+    @State private var viewModel = LoginViewModel()
     // Original States (for login screen)
     @State private var showTextFields = false
     @State private var name = ""
@@ -182,5 +182,5 @@ struct ContentView: View {
 
 
 #Preview {
-    ContentView()
+    LoginView()
 }
