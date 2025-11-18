@@ -8,48 +8,54 @@
 import SwiftUI
 
 struct RegisterView: View {
-    @State private var name = ""
-    @State private var email = ""
-    @State private var password = ""
-    @State private var groupName = ""
-    @StateObject private var viewModel = LoginViewModel()
+    @StateObject private var viewModel = RegisterViewModel()
+    var onRegistrationComplete: (UserInfo) -> Void
     
     var body: some View {
         VStack {
-            // Header
             HeaderView(title: "Create An Account",
                        subtitle: "Organize your chores today!",
                        angle: -15,
                        background: .yellow)
             
             Form {
-                TextField("Full Name", text: $name)
+                if !viewModel.errorMessage.isEmpty {
+                    Text(viewModel.errorMessage)
+                        .foregroundColor(.red)
+                }
+                
+                TextField("Full Name", text: $viewModel.name)
                     .textFieldStyle(DefaultTextFieldStyle())
                     .autocorrectionDisabled(true)
-                TextField("Email Address", text: $email)
+                TextField("Email Address", text: $viewModel.email)
                     .textFieldStyle(DefaultTextFieldStyle())
                     .autocapitalization(.none)
                     .autocorrectionDisabled(true)
-                TextField("Group's Name", text: $groupName)
+                TextField("Group Name", text: $viewModel.groupName)
                     .textFieldStyle(DefaultTextFieldStyle())
-                SecureField("Create Password", text: $password)
+                SecureField("Password", text: $viewModel.password)
                     .textFieldStyle(DefaultTextFieldStyle())
                 
                 ChorelyButton(
                     title: "Create Account",
                     background: .green
                 ) {
-                    // Attempt registration
-                    viewModel.createUser(name: name, email: email, groupName: groupName, password: password)
+                    viewModel.register { userInfo in
+                        if let userInfo = userInfo {
+                            onRegistrationComplete(userInfo)
+                        }
+                    }
                 }
                 .padding()
             }
             .offset(y: -50)
             Spacer()
         }
+        .navigationTitle("Create Account")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 #Preview {
-    RegisterView()
+    RegisterView { _ in }
 }

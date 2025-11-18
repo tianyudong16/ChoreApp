@@ -53,21 +53,20 @@ class FirebaseInterface {
         )
         
         //This block of code adds user information to the Users collection (written by Ron, added to by Milo)
-        db.collection("Users").addDocument(data: [
-            "Email": email,
-            "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
-            "color": color ?? "Green",//Green is a default value if color is nil
-            "groupKey": groupKey ?? 111111,//111111 is also a default value
-            "groupName": groupName,
-            "password": password,
-            "roommate names": roommatesNames ?? [],//If no roommates are speficied, an empty list (not sure if firebase will like this lol)
-            "roommates": roommates ?? 0//If roommates is nil, default to 0 roommates
-        ]) { err in
-            if let err = err {
-                print("Error adding document: \(err)")
-            } else {
-                print("User added successfully!")
-            }
+        do {
+            try await db.collection("Users").document(result.uid).setData([
+                "Email": email,
+                "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
+                "color": color ?? "Green",//Green is a default value if color is nil
+                "groupKey": groupKey ?? 111111,//111111 is also a default value
+                "groupName": groupName,
+                "password": password,
+                "roommate names": roommatesNames ?? [],//If no roommates are speficied, an empty list (not sure if firebase will like this lol)
+                "roommates": roommates ?? 0//If roommates is nil, default to 0 roommates
+            ])
+            print("User added successfully!")
+        } catch {
+            print("Error adding document: \(error)")
         }
 
         return result
@@ -98,15 +97,25 @@ class FirebaseInterface {
     }
 
     //Signs in the user using the given name and password
-    func signIn(name: String, email: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
-        auth.signIn(withEmail: email, password: password){result, error in
-            if let error = error{
-                completion(.failure(error))
-            } else if let user = result?.user {
-                completion(.success(user))
-            }
-        }
+    func signIn(email: String, password: String) async throws -> AuthDataResultModel {
+        let authDataResult = try await auth.signIn(withEmail: email, password: password)
+        let result = AuthDataResultModel(
+            user: authDataResult.user
+        )
+        
+        return result
     }
+    
+    // getUserData function
+    func getUserData(uid: String) async throws -> [String: Any] {
+        let document = try await firestore.collection("Users").document(uid).getDocument()
+        guard let data = document.data() else {
+            // Return empty dictionary if no data found
+            return [:]
+        }
+        return data
+    }
+    
     
     func signOut() {
         do {
