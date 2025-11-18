@@ -202,3 +202,21 @@ func editChore(documentId: String, checklist: Bool, date: String, day: String, d
     }
     
 }
+
+//Not cpmplete yet also need to change the way of implementation
+func joinGroup(userId: String, groupId: String, completion: @escaping (Bool) -> Void){
+
+    db.collection("groups").document(groupId).updateData([
+        "members": userId
+    ]) {err in
+        if let err = err{
+            print("Error joining group: \(err)")
+            completion(false)
+            return
+        }
+        
+        print("User joined successfully!")
+        
+        completion(true)
+    }
+}

@@ -33,6 +33,16 @@ struct HomeView: View {
                 .fontWeight(.heavy)
                 .font(.system(size: 30))
             
+            HStack {
+                // Second column shows the first names of each group member
+                Text("Profile Pic")
+                    .frame(width: 50, height: 50)
+                    .background(Color.gray)
+                    .clipShape(Circle())
+                Text("Name")
+            }
+
+            
             Spacer()
             
             // Chores Button
