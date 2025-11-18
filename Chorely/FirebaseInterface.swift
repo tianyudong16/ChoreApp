@@ -98,14 +98,13 @@ class FirebaseInterface {
     }
 
     //Signs in the user using the given name and password
-    func signIn(name: String, email: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
-        auth.signIn(withEmail: email, password: password){result, error in
-            if let error = error{
-                completion(.failure(error))
-            } else if let user = result?.user {
-                completion(.success(user))
-            }
-        }
+    func signIn(name: String, email: String, password: String) async throws -> AuthDataResultModel {
+        let authDataResult = try await auth.signIn(withEmail: email, password: password)
+        let result = AuthDataResultModel(
+            user: authDataResult.user
+        )
+        
+        return result
     }
     
     func signOut() {

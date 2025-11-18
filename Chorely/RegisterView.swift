@@ -32,7 +32,7 @@ struct RegisterView: View {
                     .autocorrectionDisabled(true)
                 TextField("Group's Name", text: $groupName)
                     .textFieldStyle(DefaultTextFieldStyle())
-                SecureField("Create Password", text: $password)
+                SecureField("Password", text: $password)
                     .textFieldStyle(DefaultTextFieldStyle())
                 
                 ChorelyButton(

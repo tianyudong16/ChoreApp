@@ -46,6 +46,31 @@ final class LoginViewModel: ObservableObject {
             }
         }
     }
+    
+    //This function logs in the user (different from creating a new user)
+    func loginUser(name: String, email: String, groupName: String, password: String) {
+        guard !name.isEmpty, !groupName.isEmpty else {
+            print("no name or groupName found!")
+            return
+        }
+        guard !password.isEmpty else {
+            print("no password found!")
+            return
+        }
+        guard !email.isEmpty else {
+            print("no email found!")
+            return
+        }
+        Task {
+            do {
+                let returnedUserData = try await FirebaseInterface.shared.signIn(name: name, email: email, password: password)
+                print("success")
+                print(returnedUserData)
+            } catch {
+                print("Error: \(error)")
+            }
+        }
+    }
 }
 
 struct LoginView: View {
