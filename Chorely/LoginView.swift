@@ -21,15 +21,6 @@ struct UserInfo: Hashable {
 
 let db = FirebaseInterface.shared.firestore
 
-//
-//  LoginView.swift
-//  Chorely
-//
-//  Created by Tian Yu Dong on 10/30/25.
-//
-
-import SwiftUI
-
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
     @State private var currentUser: UserInfo? = nil
