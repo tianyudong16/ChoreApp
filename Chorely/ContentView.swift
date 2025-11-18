@@ -65,7 +65,16 @@ struct ContentView: View {
         // If a user is logged in, show the MainTabView
         // Otherwise, show the login screen
         if let user = currentUser {
-            MainTabView(user: user)
+            MainTabView(user: user, onLogout: {
+                withAnimation {
+                    currentUser = nil
+                    name = ""
+                    groupName = ""
+                    email = ""
+                    password = ""
+                    showTextFields = false    
+                }
+            })
         } else {
             NavigationStack {
                 HeaderView() // I (Tian) created a new file to contain the header design elements
