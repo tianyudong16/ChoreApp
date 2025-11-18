@@ -65,18 +65,55 @@ struct ContentView: View {
         // If a user is logged in, show the MainTabView
         // Otherwise, show the login screen
         if let user = currentUser {
-            MainTabView(user: user)
+            MainTabView(user: user, onLogout: {
+                withAnimation {
+                    currentUser = nil
+                    name = ""
+                    groupName = ""
+                    email = ""
+                    password = ""
+                    showTextFields = false    
+                }
+            })
         } else {
-            NavigationStack {
-                HeaderView() // I (Tian) created a new file to contain the header design elements
-                
-                // Login Form
-                
-                
-                // Create an account
-                
-                Spacer()
-                
+            NavigationView {
+                VStack {
+                    // Header
+                    HeaderView() // I (Tian) created a new file to contain the header design elements
+                    
+                    // Login Form
+                    Form {
+                        TextField("Email Address", text: $email)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        SecureField("Email Address", text: $email)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        
+                        Button {
+                            // Attempt log in
+                        } label: {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .foregroundStyle(Color.blue)
+                                
+                                Text("Log In")
+                                    .foregroundColor(Color.white)
+                            }
+                        }
+                    }
+                    
+                    // Create an account
+                    VStack {
+                        Text("New around here?")
+                            .padding(.top, 5)
+                            .padding(.bottom, 5)
+                        
+                        NavigationLink("Create An Account", destination: RegisterView())
+                    }
+                    .padding(.bottom, 50)
+                    
+                    Spacer()
+
+                }
 //                VStack {
 //                    
 //                    Text("Welcome to Chorely")

@@ -12,6 +12,7 @@ import SwiftUI
 public struct DailyTasksView: View {
     @State private var selectedFilter: TaskFilter = .all
     @State private var showFilterSheet = false
+    @State private var sort: SortFilter = .due
 
     public init() {}
 
@@ -36,8 +37,14 @@ public struct DailyTasksView: View {
 
                     Spacer()
 
-                    Button {
-                        showFilterSheet = true
+                    Menu {
+                        Picker("Sort by", selection: $sort) {
+                            ForEach(SortFilter.allCases) { sortOption in
+                                Text(sortOption.rawValue.capitalized)
+                                    .tag(sortOption)
+                            }
+                        }
+                        Text("Filter by: \(sort.rawValue)")
                     } label: {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                             .font(.title2)
@@ -77,8 +84,16 @@ public struct DailyTasksView: View {
 
 
 private enum TaskFilter: String, CaseIterable, Identifiable {
-    case all = "All", mine = "Mine", unassigned = "Unassigned"
+    case all = "House", mine = "Mine", unassigned = "Roommates"
     var id: String { rawValue }
+}
+
+enum SortFilter: String, CaseIterable, Identifiable {
+    case priorityLevel = "Priority Level"
+    case completion = "Completion"
+    case due = "Due Date"
+
+    var id: String { self.rawValue }
 }
 
 private struct FilterChips: View {
