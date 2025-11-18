@@ -49,7 +49,7 @@ class RegisterViewModel: ObservableObject {
                     email: email
                 )
                 
-                completion(true, userInfo)
+                completion(true, userInfo) // UserInfo is passed through here
                 
             } catch {
                 print("Error: \(error)")
@@ -59,10 +59,12 @@ class RegisterViewModel: ObservableObject {
         }
     }
     
+    // User's info is passed in through the "completion" argument
+    // uses a completion handler that returns (Bool, UserInfo?)
     func register(completion: @escaping (UserInfo?) -> Void) {
         // Use Milo's createUser directly
         createUser(name: name, email: email, groupName: groupName, password: password) { success, userInfo in
-            completion(userInfo)
+            completion(userInfo) // if true, then UserInfo is extracted and passed along
         }
     }
 }
