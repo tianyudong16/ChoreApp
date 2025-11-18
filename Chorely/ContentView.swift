@@ -4,6 +4,7 @@
 //
 //  Created by Tian Yu Dong on 10/30/25.
 //
+// This file handles login
 
 import SwiftUI
 import FirebaseFirestore
@@ -75,63 +76,100 @@ struct ContentView: View {
                 }
             })
         } else {
-            NavigationStack {
+            NavigationView {
                 VStack {
-
-                    Text("Welcome to Chorely")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 200)
+                    // Header
+                    HeaderView() // I (Tian) created a new file to contain the header design elements
                     
-                    Spacer()
-                    
-                    Button("Get Started") {
-                        withAnimation {
-                            showTextFields.toggle()
-                        }
-                    }
-                    .foregroundColor(Color(uiColor: .label))
-                    .frame(width: 200, height: 50)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary, lineWidth: 2))
-                    .background(Color(uiColor: .systemBackground))
-                    
-                    Spacer()
-                    
-                    // Text Fields
-                    if showTextFields {
-                        VStack(spacing: 20) {
-                            TextField("Enter your name", text: $name)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("Enter your group's name", text: $groupName)
-                                .textFieldStyle(.roundedBorder)
-                            TextField("Enter your email", text: $email)
-                                .textFieldStyle(.roundedBorder).textInputAutocapitalization(.never)
-                            TextField("Enter your password", text: $password)
-                                .textFieldStyle(.roundedBorder).textInputAutocapitalization(.never)
-                            
-                            Button("Let's Go!") {
-                                viewModel.createUser(name: name,  email: email, groupName: groupName, password: password)
+                    // Login Form
+                    Form {
+                        TextField("Email Address", text: $email)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        SecureField("Email Address", text: $email)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        
+                        Button {
+                            // Attempt log in
+                        } label: {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .foregroundStyle(Color.blue)
                                 
-                                // Set the current user. This triggers the view swap to MainTabView
-                                withAnimation {
-                                    self.currentUser = UserInfo(name: name, groupName: groupName)
-                                }
+                                Text("Log In")
+                                    .foregroundColor(Color.white)
                             }
-                            .fontWeight(.bold)
-                            .italic()
-                            .disabled(name.isEmpty || groupName.isEmpty)
-                            
-
                         }
-                        .padding(.horizontal, 40)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     
+                    // Create an account
+                    VStack {
+                        Text("New around here?")
+                            .padding(.top, 5)
+                            .padding(.bottom, 5)
+                        
+                        NavigationLink("Create An Account", destination: RegisterView())
+                    }
+                    .padding(.bottom, 50)
+                    
                     Spacer()
+
                 }
-                .padding()
+//                VStack {
+//                    
+//                    Text("Welcome to Chorely")
+//                        .font(.largeTitle)
+//                        .fontWeight(.bold)
+//                        .multilineTextAlignment(.center)
+//                        .frame(maxWidth: .infinity, alignment: .center)
+//                        .padding(.top, 200)
+//                    
+//                    Spacer()
+//                    
+//                    Button("Get Started") {
+//                        withAnimation {
+//                            showTextFields.toggle()
+//                        }
+//                    }
+//                    .foregroundColor(Color(uiColor: .label))
+//                    .frame(width: 200, height: 50)
+//                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary, lineWidth: 2))
+//                    .background(Color(uiColor: .systemBackground))
+//                    
+//                    Spacer()
+//                    
+//                    // Text Fields
+//                    if showTextFields {
+//                        VStack(spacing: 20) {
+//                            TextField("Enter your name", text: $name)
+//                                .textFieldStyle(.roundedBorder)
+//                            TextField("Enter your group's name", text: $groupName)
+//                                .textFieldStyle(.roundedBorder)
+//                            TextField("Enter your email", text: $email)
+//                                .textFieldStyle(.roundedBorder).textInputAutocapitalization(.never)
+//                            TextField("Enter your password", text: $password)
+//                                .textFieldStyle(.roundedBorder).textInputAutocapitalization(.never)
+//                            
+//                            Button("Let's Go!") {
+//                                viewModel.createUser(name: name,  email: email, groupName: groupName, password: password)
+//                                
+//                                // Set the current user. This triggers the view swap to MainTabView
+//                                withAnimation {
+//                                    self.currentUser = UserInfo(name: name, groupName: groupName)
+//                                }
+//                            }
+//                            .fontWeight(.bold)
+//                            .italic()
+//                            .disabled(name.isEmpty || groupName.isEmpty)
+//                            
+//
+//                        }
+//                        .padding(.horizontal, 40)
+//                        .transition(.move(edge: .bottom).combined(with: .opacity))
+//                    }
+//                    
+//                    Spacer()
+//                }
+//                .padding()
             }
         }
     }
