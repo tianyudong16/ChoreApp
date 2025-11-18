@@ -79,13 +79,13 @@ struct ContentView: View {
             NavigationView {
                 VStack {
                     // Header
-                    HeaderView() // I (Tian) created a new file to contain the header design elements
+                    HeaderView(title: "Welcome to Chorely", subtitle: "Start Organizing Chores!", angle: 15, background: Color(hue: 0.353, saturation: 1.0, brightness: 0.569))
                     
                     // Login Form
                     Form {
                         TextField("Email Address", text: $email)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        SecureField("Email Address", text: $email)
+                        SecureField("Password", text: $password)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         
                         Button {
@@ -97,9 +97,12 @@ struct ContentView: View {
                                 
                                 Text("Log In")
                                     .foregroundColor(Color.white)
+                                    .bold()
                             }
                         }
+                        .padding()
                     }
+                    .offset(y: -50)
                     
                     // Create an account
                     VStack {
@@ -114,6 +117,9 @@ struct ContentView: View {
                     Spacer()
 
                 }
+
+
+// OLD CODE //
 //                VStack {
 //                    
 //                    Text("Welcome to Chorely")
