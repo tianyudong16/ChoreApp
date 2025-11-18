@@ -85,22 +85,19 @@ struct ContentView: View {
                     Form {
                         TextField("Email Address", text: $email)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled(true)
                         SecureField("Password", text: $password)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         
-                        Button {
+                        ChorelyButton(
+                            title: "Log In",
+                            background: .blue
+                        ) {
                             // Attempt log in
-                        } label: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .foregroundStyle(Color.blue)
-                                
-                                Text("Log In")
-                                    .foregroundColor(Color.white)
-                                    .bold()
-                            }
                         }
                         .padding()
+
                     }
                     .offset(y: -50)
                     
