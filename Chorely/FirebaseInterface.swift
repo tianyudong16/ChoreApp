@@ -43,7 +43,7 @@ class FirebaseInterface {
     
     //Adds a new user to the repository with the provided properties
     //TO DO: make it so that the color is different for each user in the group
-    func addUser(name: String, email: String, color: String? = nil, groupKey: Int? = nil, groupName: String, nickName: String? = nil, password: String, roommatesNames: [String]? = [], roommates: Int? = nil) async throws -> AuthDataResultModel {
+    func addUser(name: String, email: String, color: String? = nil, groupKey: Int? = nil, groupName: String, password: String, roommatesNames: [String]? = [], roommates: Int? = nil) async throws -> AuthDataResultModel {
         print("Attempting to add user: \(name), \(groupName)")
         
         //This block of code authenticates the user using the Auth library, but does not add user data
@@ -59,7 +59,6 @@ class FirebaseInterface {
             "color": color ?? "Green",//Green is a default value if color is nil
             "groupKey": groupKey ?? 111111,//111111 is also a default value
             "groupName": groupName,
-            "nickname": nickName ?? name,//If no nickname is specified, the nickName is just the name
             "password": password,
             "roommate names": roommatesNames ?? [],//If no roommates are speficied, an empty list (not sure if firebase will like this lol)
             "roommates": roommates ?? 0//If roommates is nil, default to 0 roommates
@@ -75,15 +74,13 @@ class FirebaseInterface {
     }
 
     
-    func editUser(documentId: String, name: String, email: String, color: String, groupKey: Int, groupName: String, nickName: String, password: String, roommatesNames: [String], roommates: Int, completion: @escaping (Bool) -> Void){
+    func editUser(documentId: String, name: String, email: String, color: String, groupKey: Int, groupName: String, password: String, roommatesNames: [String], roommates: Int, completion: @escaping (Bool) -> Void){
         db.collection("Users").document(documentId).updateData([
             "Email": email,
             "Name": name,
             "color": color,
             "groupKey": groupKey,
-            
             "groupName": groupName,
-            "nickname": nickName,
             "password": password,
             "roommate names": roommatesNames,
             "roommates": roommates
@@ -156,8 +153,8 @@ func getChore(documentId:String, completion: @escaping ([String: Any]?) -> Void)
 func addChore(checklist: Bool, date: String, day: String, description: String, monthlyrepeatbydate: Bool, monthlyrepeatbyweek: String, Name: String, PriorityLevel: String, RepetitionTime: String, TimeLength: Int, assignedUsers:[String], completed: Bool, groupKey: Int){
     db.collection("chores").addDocument(data: [
         "Checklist": checklist,
-        "Date": date,
-        "Day": day,
+        "Date": date,//exact date
+        "Day": day,//day of week
         "Description": description,
         "MonthlyRepeatByDate": monthlyrepeatbydate,
         "MonthlyRepeatByWeek": monthlyrepeatbyweek,
@@ -167,7 +164,7 @@ func addChore(checklist: Bool, date: String, day: String, description: String, m
         "TimeLength": TimeLength,
         "assignedUsers":assignedUsers,
         "completed": completed,
-        "groupKey": groupKey
+        "groupKey": groupKey//We should use the groupKey of the user who's currently logged in instead of it being an argument
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
@@ -191,7 +188,7 @@ func editChore(documentId: String, checklist: Bool, date: String, day: String, d
         "TimeLength": TimeLength,
         "assignedUsers":assignedUsers,
         "completed": completed,
-        "groupKey": groupKey
+        "groupKey": groupKey//We should use the groupKey of the user who's currently logged in instead of it being an argument
     ])  { err in
         if let  err = err {
             print("Error editimg chore: \(err)")
