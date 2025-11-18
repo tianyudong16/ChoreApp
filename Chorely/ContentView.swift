@@ -95,6 +95,7 @@ struct ContentView: View {
                             background: .blue
                         ) {
                             // Attempt log in
+                            self.currentUser = UserInfo(name: name, groupName: groupName)
                         }
                         .padding()
 

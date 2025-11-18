@@ -12,6 +12,7 @@ struct RegisterView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var groupName = ""
+    @StateObject private var viewModel = ContentViewModel()
     
     var body: some View {
         VStack {
@@ -39,7 +40,7 @@ struct RegisterView: View {
                     background: .green
                 ) {
                     // Attempt registration
-                    
+                    viewModel.createUser(name: name, email: email, groupName: groupName, password: password)
                 }
                 .padding()
             }
