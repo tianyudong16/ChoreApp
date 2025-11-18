@@ -4,7 +4,7 @@
 //
 //  Created by Tian Yu Dong on 10/30/25.
 //
-// This file handles login
+//  This file handles login
 
 import SwiftUI
 import FirebaseFirestore
@@ -29,15 +29,6 @@ let db = FirebaseInterface.shared.firestore
 //
 
 import SwiftUI
-
-struct LoginView: View {
-    @StateObject private var viewModel = LoginViewModel()
-    @State private var currentUser: UserInfo? = nil
-    
-    var body: some View {
-        NavigationView {
-            if let user = currentUser {
-                MainTabView(user: user, onLogout: {
                     withAnimation {
                         currentUser = nil
                         viewModel.email = ""
