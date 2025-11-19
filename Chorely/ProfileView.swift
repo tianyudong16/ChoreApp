@@ -7,6 +7,8 @@
 
 import SwiftUI
 import UserNotifications
+import PhotosUI
+
 
 struct ProfileView: View {
     let onLogout: () -> Void
@@ -21,6 +23,9 @@ struct ProfileView: View {
     @State private var showLeaveAlert = false
     @State private var showImagePicker = false
     @State private var profileImage: Image? = Image(systemName: "person.circle")
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    
+    @State private var groupCode: String = ""
     
     private func handleToggleChange(_ on: Bool) {
         guard on else { return }
@@ -53,18 +58,22 @@ struct ProfileView: View {
             VStack(spacing: 30){
                 
                 VStack(spacing: 15){
-                    ZStack(alignment: .bottomTrailing){
-                        profileImage?
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 100, height: 100)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.gray, lineWidth: 1))
-                            .onTapGesture{showImagePicker.toggle() }
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundColor(.blue)
-                            .offset(x: 8, y: 4)
+                    PhotosPicker(selection: $selectedPhotoItem,
+                                 matching: .images,
+                                 photoLibrary: .shared()) {
+                        ZStack(alignment: .bottomTrailing) {
+                            profileImage?
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 100, height: 100)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.gray, lineWidth: 1))
+
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.system(size: 26))
+                                .foregroundColor(.blue)
+                                .offset(x: 8, y: 4)
+                        }
                     }
                    
                         TextField("User's Name", text: $name)
@@ -83,15 +92,18 @@ struct ProfileView: View {
                 Divider()
                 
                 VStack(spacing: 15){
-                    Button{
+                    Button {
                         showJoinAlert = true
                     } label: {
                         ProfileRow(icon: "person.3", label: "Join Group")
                     }
-                    .alert("Join Group", isPresented: $showJoinAlert){
+                    .alert("Join Group", isPresented: $showJoinAlert) {
+                        TextField("Group code", text: $groupCode)
                         Button("Cancel", role: .cancel) {}
-                        Button("Join", role: .none) {}
-                    }message: {
+                        Button("Join") {
+                            
+                        }
+                    } message: {
                         Text("Enter group code to join.")
                     }
                     
@@ -117,10 +129,10 @@ struct ProfileView: View {
                 VStack(spacing: 15){
                     HStack {
                         Label("Notifications", systemImage: notificationsOn ? "bell.fill" : "bell.slash.fill")
-                            .font(.headline)
-                        Spacer()
-                        Toggle(" ", isOn: $notificationsOn)
-                            .padding(.horizontal, 24)
+                                    .font(.headline)
+                                Spacer()
+                                Toggle(" ", isOn: $notificationsOn)
+                                    .padding(.horizontal, 24)
                     }
                     .padding(.horizontal,24)
                     
@@ -142,15 +154,12 @@ struct ProfileView: View {
                 Button("Cancel", role: .cancel) {}
 
                 Button("Log Out", role: .destructive) {
-                    onLogout()    
+                    //signs users out and takes them to log in screen
+                    FirebaseInterface.shared.signOut()
+                    onLogout()
                 }
             } message: {
                 Text("Are you sure you want to log out?")
-            }
-            NavigationView{
-                NavigationLink(destination: HomeView(name: "", groupName: "")){
-                    
-                }
             }
                 .padding(.vertical)
                 .padding(.horizontal)
@@ -162,6 +171,18 @@ struct ProfileView: View {
                 Button("Open Settings") { openSettings() }
             } message: {
                 Text("To enable notifications, allow them in iOS Settings.")
+            }
+        
+            //allows users to choose a custom picture
+            .onChange(of: selectedPhotoItem, initial: false) { oldItem, newItem in
+                guard let newItem else { return }
+                
+                Task {
+                    if let data = try? await newItem.loadTransferable(type: Data.self),
+                       let uiImage = UIImage(data: data) {
+                        profileImage = Image(uiImage: uiImage)
+                    }
+                }
             }
         }
     }

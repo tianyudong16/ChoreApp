@@ -4,6 +4,7 @@
 //
 //  Created by Tian Yu Dong on 10/30/25.
 //
+//  Used a tutorial on Youtube on implementing a calendar view
 
 import SwiftUI
 
@@ -45,7 +46,7 @@ struct CalendarView: View {
                 .padding(.bottom, 5)
                 
                 
-                // --- Calendar Grid ---
+                // Shows the actual calendar
                 LazyVGrid(columns: columns) {
                     ForEach(days, id: \.self) { day in
                         
@@ -87,18 +88,22 @@ struct CalendarView: View {
                         }
                     }
                 }
+                //takes you to daily task UI page
                 NavigationLink {
                     DailyTasksView()
                 } label: {
                     HStack(spacing: 10) {
+                        //image next to today's chores (I (Brooke) am going to change it to show the number of chores to complete instead of the checkmark)
                         Image(systemName: "checkmark.circle.fill")
+                        //button label
                         Text("Today’s Chores")
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(.blue.opacity(0.12))
-                    .foregroundStyle(.blue)
+                    //matches color of calendar
+                    .background(color.opacity(0.12))
+                    .foregroundStyle(color)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .padding(.top, 8)

@@ -13,10 +13,6 @@ struct HomeView: View {
     var groupName: String
     
     @State private var showApprovalAlert = false
-    
-    // State to hold the chore that needs approval
-    // In a real app, you would fetch this from Firebase
-    // when the view appears.
     @State private var choreToApprove: String? = "Wash the dishes" // Sample chore
     
     var body: some View {
@@ -33,20 +29,26 @@ struct HomeView: View {
                 .fontWeight(.heavy)
                 .font(.system(size: 30))
             
+            HStack {
+                Text("Profile Pic")
+                    .frame(width: 50, height: 50)
+                    .background(Color.gray)
+                    .clipShape(Circle())
+                Text("Name")
+            }
+
             Spacer()
             
-            // Chores Button
             NavigationLink(destination: ChoresView()) {
                 Text("View Chores")
                     .font(.headline)
                     .padding()
-                    .frame(maxWidth: .infinity) // Make it wide
+                    .frame(maxWidth: .infinity)
                     .background(Color.green)
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }
 
-            // Add Chore Button
             Button("Add Chore") {
                 // do stuff
             }
@@ -57,58 +59,33 @@ struct HomeView: View {
         .padding()
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
-        
-        
-        // Pending Approvals Alert
         .alert(
-            "Approval Request", // The title
+            "Approval Request",
             isPresented: $showApprovalAlert,
-            presenting: choreToApprove // pass in chore name
+            presenting: choreToApprove
         ) { choreName in
-            // Defining alert actions
-            
-            // "Approve" Button
             Button("Approve") {
-                // Put your approval logic here
                 print("Approved \(choreName)!")
-                // e.g., FirebaseInterface.shared.approveTask(choreName)
-                
-                // After approving, clear the chore so the button hides
                 withAnimation {
                     choreToApprove = nil
                 }
             }
-            
-            // "Deny" Button
             Button("Deny", role: .destructive) {
                 print("Denied \(choreName)!")
-                // e.g., FirebaseInterface.shared.denyTask(choreName)
-                
-                // After denying, clear the chore so the button hides
                 withAnimation {
                     choreToApprove = nil
                 }
             }
-            
-            // "Cancel" Button
-            Button("Cancel", role: .cancel) {
-                // Alert just closes, chore is still pending
-            }
-            
+            Button("Cancel", role: .cancel) {}
         } message: { choreName in
-            // The dynamic message for the alert
             Text("A group member has requested approval for: \"\(choreName)\". Do you approve?")
         }
-        
         .onAppear {
-            // In a real app, you would fetch pending chores here
-            // e.g., FirebaseInterface.shared.fetchPendingChore { chore in
-            //    self.choreToApprove = chore
-            // }
+            // Fetch pending chores here
         }
     }
 }
 
 #Preview {
-    HomeView(name: "", groupName: "")
+    HomeView(name: "Test User", groupName: "Test Group")
 }

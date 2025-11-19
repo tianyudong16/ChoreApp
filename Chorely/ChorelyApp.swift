@@ -15,7 +15,7 @@ struct ChorelyApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LoginView()
         }
     }
 }

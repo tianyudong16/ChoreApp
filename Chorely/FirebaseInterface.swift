@@ -43,7 +43,7 @@ class FirebaseInterface {
     
     //Adds a new user to the repository with the provided properties
     //TO DO: make it so that the color is different for each user in the group
-    func addUser(name: String, email: String, color: String? = nil, groupKey: Int? = nil, groupName: String, nickName: String? = nil, password: String, roommatesNames: [String]? = [], roommates: Int? = nil) async throws -> AuthDataResultModel {
+    func addUser(name: String, email: String, color: String? = nil, groupKey: Int? = nil, groupName: String, password: String, roommatesNames: [String]? = [], roommates: Int? = nil) async throws -> AuthDataResultModel {
         print("Attempting to add user: \(name), \(groupName)")
         
         //This block of code authenticates the user using the Auth library, but does not add user data
@@ -53,36 +53,33 @@ class FirebaseInterface {
         )
         
         //This block of code adds user information to the Users collection (written by Ron, added to by Milo)
-        db.collection("Users").addDocument(data: [
-            "Email": email,
-            "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
-            "color": color ?? "Green",//Green is a default value if color is nil
-            "groupKey": groupKey ?? 111111,//111111 is also a default value
-            "groupName": groupName,
-            "nickname": nickName ?? name,//If no nickname is specified, the nickName is just the name
-            "password": password,
-            "roommate names": roommatesNames ?? [],//If no roommates are speficied, an empty list (not sure if firebase will like this lol)
-            "roommates": roommates ?? 0//If roommates is nil, default to 0 roommates
-        ]) { err in
-            if let err = err {
-                print("Error adding document: \(err)")
-            } else {
-                print("User added successfully!")
-            }
+        do {
+            try await db.collection("Users").document(result.uid).setData([
+                "Email": email,
+                "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
+                "color": color ?? "Green",//Green is a default value if color is nil
+                "groupKey": groupKey ?? 111111,//111111 is also a default value
+                "groupName": groupName,
+                "password": password,
+                "roommate names": roommatesNames ?? [],//If no roommates are speficied, an empty list (not sure if firebase will like this lol)
+                "roommates": roommates ?? 0//If roommates is nil, default to 0 roommates
+            ])
+            print("User added successfully!")
+        } catch {
+            print("Error adding document: \(error)")
         }
 
         return result
     }
 
     
-    func editUser(documentId: String, name: String, email: String, color: String, groupKey: Int, groupName: String, nickName: String, password: String, roommatesNames: [String], roommates: Int, completion: @escaping (Bool) -> Void){
+    func editUser(documentId: String, name: String, email: String, color: String, groupKey: Int, groupName: String, password: String, roommatesNames: [String], roommates: Int, completion: @escaping (Bool) -> Void){
         db.collection("Users").document(documentId).updateData([
+            "Email": email,
             "Name": name,
             "color": color,
             "groupKey": groupKey,
-            
             "groupName": groupName,
-            "nickname": nickName,
             "password": password,
             "roommate names": roommatesNames,
             "roommates": roommates
@@ -100,27 +97,26 @@ class FirebaseInterface {
     }
 
     //Signs in the user using the given name and password
-    func signIn(name: String, email: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
-        auth.signIn(withEmail: email, password: password){result, error in
-            if let error = error{
-                completion(.failure(error))
-            } else if let user = result?.user {
-                completion(.success(user))
-            }
-        }
+    func signIn(email: String, password: String) async throws -> AuthDataResultModel {
+        let authDataResult = try await auth.signIn(withEmail: email, password: password)
+        let result = AuthDataResultModel(
+            user: authDataResult.user
+        )
+        
+        return result
     }
     
-    //Note: we will need to add this functionality to addUser, and change the surrounding code of the ContentView page to support error catching.
-    func signUp(name: String, email: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
-        auth.createUser(withEmail: email, password: password){result, error in
-            if let error = error{
-                completion(.failure(error))
-            } else if let user = result?.user {
-                completion(.success(user))
-            }
+    // getUserData function
+    func getUserData(uid: String) async throws -> [String: Any] {
+        let document = try await firestore.collection("Users").document(uid).getDocument()
+        guard let data = document.data() else {
+            // Return empty dictionary if no data found
+            return [:]
         }
+        return data
     }
-        
+    
+    
     func signOut() {
         do {
             try auth.signOut()
@@ -128,25 +124,6 @@ class FirebaseInterface {
         } catch {
             print("error signing out :(")
         }
-    }
-        
-    //TO DO: add functions that let a user change their password, name, and other attributes.
-    
-    //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
-    func getChores(){
-        
-    }
-    
-    //Adds a new chore to the repository with the following properties:
-    //name: String with the name
-    //priority: 1 = low, 2 = med, 3 = high. Never type anything that's not these 3 numbers
-    //repetitionTime: how often the chore is repeated (weekly, daily, ect). (To be honest, I don't know how we would represent this)
-    //date: When the chore is due to be done (if not repeated).
-    //description: a string containing the description
-    //assignedTo: the users that the chore is assigned to. Should contain at least one user
-    //isChecklist: whether or not the chore is a checklist chore as opposed to an event/repeating chore. False by default.
-    func addChore(name: String, priority: Int?, repetitionTime: Double?, date: Timestamp, description: String?, assignedTo: Array<UserInfo>, isChecklist: Bool?){
-        
     }
     
     //Marks a chore as complete, also records who did the chore
@@ -162,6 +139,7 @@ class FirebaseInterface {
     }
 }
 
+//Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
 func getChore(documentId:String, completion: @escaping ([String: Any]?) -> Void)
 {
     db.collection("chores").document(documentId).getDocument{snapshot,
@@ -184,8 +162,8 @@ func getChore(documentId:String, completion: @escaping ([String: Any]?) -> Void)
 func addChore(checklist: Bool, date: String, day: String, description: String, monthlyrepeatbydate: Bool, monthlyrepeatbyweek: String, Name: String, PriorityLevel: String, RepetitionTime: String, TimeLength: Int, assignedUsers:[String], completed: Bool, groupKey: Int){
     db.collection("chores").addDocument(data: [
         "Checklist": checklist,
-        "Date": date,
-        "Day": day,
+        "Date": date,//exact date
+        "Day": day,//day of week
         "Description": description,
         "MonthlyRepeatByDate": monthlyrepeatbydate,
         "MonthlyRepeatByWeek": monthlyrepeatbyweek,
@@ -195,7 +173,7 @@ func addChore(checklist: Bool, date: String, day: String, description: String, m
         "TimeLength": TimeLength,
         "assignedUsers":assignedUsers,
         "completed": completed,
-        "groupKey": groupKey
+        "groupKey": groupKey//We should use the groupKey of the user who's currently logged in instead of it being an argument
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
@@ -219,7 +197,7 @@ func editChore(documentId: String, checklist: Bool, date: String, day: String, d
         "TimeLength": TimeLength,
         "assignedUsers":assignedUsers,
         "completed": completed,
-        "groupKey": groupKey
+        "groupKey": groupKey//We should use the groupKey of the user who's currently logged in instead of it being an argument
     ])  { err in
         if let  err = err {
             print("Error editimg chore: \(err)")
@@ -232,4 +210,22 @@ func editChore(documentId: String, checklist: Bool, date: String, day: String, d
         completion(true)
     }
     
+}
+
+//Not cpmplete yet also need to change the way of implementation
+func joinGroup(userId: String, groupId: String, completion: @escaping (Bool) -> Void){
+
+    db.collection("groups").document(groupId).updateData([
+        "members": userId
+    ]) {err in
+        if let err = err{
+            print("Error joining group: \(err)")
+            completion(false)
+            return
+        }
+        
+        print("User joined successfully!")
+        
+        completion(true)
+    }
 }
