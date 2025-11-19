@@ -22,6 +22,21 @@ struct AuthDataResultModel {
         self.photoURL = user.photoURL?.absoluteString
     }
 }
+struct Chore {
+    var checklist: Bool = false
+    var date: String
+    var day: String
+    var description: String = " "
+    var monthlyRepeatByDate: Bool = false
+    var monthlyRepeatByWeek: String = " "
+    var name: String
+    var priorityLevel: String = "low"
+    var repetitionTime: String
+    var timeLength: Int
+    var assignedUsers: [String]
+    var completed: Bool = false
+}
+
 
 class FirebaseInterface {
     static let shared = FirebaseInterface()
@@ -140,9 +155,9 @@ class FirebaseInterface {
 }
 
 //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
-func getChore(documentId:String, completion: @escaping ([String: Any]?) -> Void)
+func getChore(documentId: String, groupKey:String, completion: @escaping ([String: Any]?) -> Void)
 {
-    db.collection("chores").document(documentId).getDocument{snapshot,
+    db.collection("chores").document("group").collection(groupKey).document(documentId).getDocument{snapshot,
         err in
         if let err = err {
             print("Error getting chore: \(err)")
@@ -159,21 +174,20 @@ func getChore(documentId:String, completion: @escaping ([String: Any]?) -> Void)
     }
 }
 
-func addChore(checklist: Bool, date: String, day: String, description: String, monthlyrepeatbydate: Bool, monthlyrepeatbyweek: String, Name: String, PriorityLevel: String, RepetitionTime: String, TimeLength: Int, assignedUsers:[String], completed: Bool, groupKey: Int){
-    db.collection("chores").addDocument(data: [
-        "Checklist": checklist,
-        "Date": date,//exact date
-        "Day": day,//day of week
-        "Description": description,
-        "MonthlyRepeatByDate": monthlyrepeatbydate,
-        "MonthlyRepeatByWeek": monthlyrepeatbyweek,
-        "Name": Name,
-        "PriorityLevel": PriorityLevel,
-        "RepetitionTime": RepetitionTime,
-        "TimeLength": TimeLength,
-        "assignedUsers":assignedUsers,
-        "completed": completed,
-        "groupKey": groupKey//We should use the groupKey of the user who's currently logged in instead of it being an argument
+func addChore(chore: Chore, groupKey: String){
+    db.collection("chores").document("group").collection(groupKey).addDocument(data: [
+        "Checklist": chore.checklist,
+        "Date": chore.date,//exact date
+        "Day": chore.day,//day of week
+        "Description": chore.description,
+        "MonthlyRepeatByDate": chore.monthlyRepeatByDate,
+        "MonthlyRepeatByWeek": chore.monthlyRepeatByWeek,
+        "Name": chore.name,
+        "PriorityLevel": chore.priorityLevel,
+        "RepetitionTime": chore.repetitionTime,
+        "TimeLength": chore.timeLength,
+        "assignedUsers": chore.assignedUsers,
+        "completed": chore.completed,
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
