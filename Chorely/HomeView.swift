@@ -39,8 +39,8 @@ struct HomeView: View {
 
             Spacer()
             
-            NavigationLink(destination: ChoresView()) {
-                Text("View Chores")
+            NavigationLink(destination: DailyTasksView()) {
+                Text("Today's Chores")
                     .font(.headline)
                     .padding()
                     .frame(maxWidth: .infinity)
