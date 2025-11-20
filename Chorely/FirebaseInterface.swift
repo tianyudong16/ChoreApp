@@ -58,7 +58,7 @@ class FirebaseInterface {
     
     //Adds a new user to the repository with the provided properties
     //TO DO: make it so that the color is different for each user in the group
-    func addUser(name: String, email: String, color: String? = nil, groupKey: Int? = nil, groupName: String, password: String, roommatesNames: [String]? = [], roommates: Int? = nil) async throws -> AuthDataResultModel {
+    func addUser(name: String, email: String, color: String? = nil, groupKey: Int? = nil, groupName: String, password: String, roommatesNames: [String]? = []) async throws -> AuthDataResultModel {
         print("Attempting to add user: \(name), \(groupName)")
         
         //This block of code authenticates the user using the Auth library, but does not add user data
@@ -77,7 +77,6 @@ class FirebaseInterface {
                 "groupName": groupName,
                 "password": password,
                 "roommate names": roommatesNames ?? [],//If no roommates are speficied, an empty list (not sure if firebase will like this lol)
-                "roommates": roommates ?? 0//If roommates is nil, default to 0 roommates
             ])
             print("User added successfully!")
         } catch {
@@ -87,28 +86,54 @@ class FirebaseInterface {
         return result
     }
 
-    
-    func editUser(documentId: String, name: String, email: String, color: String, groupKey: Int, groupName: String, password: String, roommatesNames: [String], roommates: Int, completion: @escaping (Bool) -> Void){
-        db.collection("Users").document(documentId).updateData([
-            "Email": email,
-            "Name": name,
-            "color": color,
-            "groupKey": groupKey,
-            "groupName": groupName,
-            "password": password,
-            "roommate names": roommatesNames,
-            "roommates": roommates
-        ]) { err in
-            if let err = err {
-                print("Error adding document: \(err)")
-                completion(false)
-                return
+    //This edits an existing user. Any number of the parameters can be empty
+    func editUser(name: String? = nil, email: String? = nil, color: String? = nil, groupKey: Int? = nil, groupName: String? = nil, password: String? = nil, roommatesNames: [String]? = nil) async throws {
+        guard let userId = Auth.auth().currentUser?.email else {return}//This ensures the current user is signed in
+        let documentId = db.collection("Users").document(userId).documentID//This is the document ID associated with the currently signed-in user.
+        
+        //We need to try-await for each attribute individually, since the updateData function will actually accept nil values and blank those values. EditAttribute contains the code which actually edits the firebase document.
+        do {
+            if let nameLocal = name {//This ensures that if the name field is empty, we don't change the existing name
+                try await editAttribute(attributeName: "Name", newValue: nameLocal, documentId: documentId)
             }
-            
-            completion(true)
-            print("User added successfully!")
+            if let emailLocal = email {
+                try await editAttribute(attributeName: "Email", newValue: emailLocal, documentId: documentId)
+            }
+            if let colorLocal = color {
+                try await editAttribute(attributeName: "color", newValue: colorLocal, documentId: documentId)
+            }
+            if let groupLocal = groupKey {
+                try await editAttribute(attributeName: "groupKey", newValue: groupLocal, documentId: documentId)
+            }
+            if let groupNameLocal = groupName {
+                try await editAttribute(attributeName: "groupName", newValue: groupNameLocal, documentId: documentId)
+            }
+            if let passwordLocal = password {
+                try await editAttribute(attributeName: "password", newValue: passwordLocal, documentId: documentId)
+            }
+            if let roommatesLocal = roommatesNames {
+                try await editAttribute(attributeName: "roommate names", newValue: roommatesLocal, documentId: documentId)
+            }
+        } catch {
+            print("Error editing user: \(error)")
         }
-
+    }
+    
+    //A private function to help streamline editUser, it would be too bloated if we had to put this whole block for each thing individually.
+    private func editAttribute(attributeName: String, newValue: Any, documentId: String) async throws {
+        //attributeName is the name of the field we are changing (ex. password)
+        do {
+            //We only edit the document one attribute at a time.
+            try await db.collection("Users").document(documentId).updateData([
+                attributeName: newValue
+            ])
+            //Unlike the setData function, we don't need to specify merge, and the other attributes are untouched
+            print("Succesfully added \(attributeName)")
+        } catch {
+            print("Error editing  \(attributeName): \(error)")
+            return //error case
+        }
+        return//successful case
     }
 
     //Signs in the user using the given name and password
