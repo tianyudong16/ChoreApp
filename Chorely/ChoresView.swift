@@ -1,5 +1,5 @@
 //
-//  ChoresView.swift
+//  NewChoreView.swift
 //  Chorely
 //
 //  Created by Tian Yu Dong on 11/12/25.
@@ -8,16 +8,19 @@
 import SwiftUI
 
 // Navigates to the chores page
-struct ChoresView: View {
+struct NewChoreView: View {
     var body: some View {
-        Text("Chores List will go here!")
-            .navigationTitle("Chores")
-            .navigationBarTitleDisplayMode(.inline)
+        VStack {
+            Text("Chores")
+                .bold()
+                .font(.headline)
+            Text("Chores List will go here!")
+        }
     }
 }
 
 #Preview {
     NavigationStack {
-        ChoresView()
+        NewChoreView()
     }
 }

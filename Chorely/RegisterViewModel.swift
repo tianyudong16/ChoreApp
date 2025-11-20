@@ -61,6 +61,7 @@ class RegisterViewModel: ObservableObject {
     
     // User's info is passed in through the "completion" argument
     // uses a completion handler that returns (Bool, UserInfo?)
+
     func register(completion: @escaping (UserInfo?) -> Void) {
         // Use Milo's createUser directly
         createUser(name: name, email: email, groupName: groupName, password: password) { success, userInfo in
