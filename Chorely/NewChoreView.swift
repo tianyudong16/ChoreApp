@@ -2,6 +2,8 @@
 //  NewChoreView.swift
 //  Chorely
 //
+//  Created by Tian Yu Dong on 11/25/25.
+//
 
 import SwiftUI
 

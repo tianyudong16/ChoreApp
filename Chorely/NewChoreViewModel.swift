@@ -2,6 +2,8 @@
 //  NewChoreViewModel.swift
 //  Chorely
 //
+//  Created by Tian Yu Dong on 11/25/25.
+//
 
 import Foundation
 import FirebaseAuth
@@ -17,7 +19,7 @@ class NewChoreViewModel: ObservableObject {
     
     // MARK: - UI State
     @Published var showAlert = false
-    @Published var isLoading = true          // ← Shows "Loading your group..."
+    @Published var isLoading = true // Shows "Loading your group..."
     
     // MARK: - Private
     private var groupKey: String?
@@ -68,14 +70,14 @@ class NewChoreViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Can Save?
+    // MARK: - Checks if chore can be saved
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !isLoading &&
         groupKey != nil
     }
     
-    // MARK: - Save Chore (Actually Works!)
+    // MARK: - Save Chore
     func save() {
         guard canSave, let groupKey = groupKey else {
             showAlert = true
