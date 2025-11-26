@@ -9,8 +9,10 @@ import SwiftUI
 
 // Home Screen
 struct HomeView: View {
+    
     var name: String
     var groupName: String
+    var userID: String
     
     @State private var showApprovalAlert = false
     @State private var choreToApprove: String? = "Wash the dishes" // Sample chore
@@ -48,11 +50,19 @@ struct HomeView: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }
-
-            Button("Add Chore") {
-                // do stuff
+            .padding(.horizontal)
+            
+            NavigationLink(destination: ChoresView(userID: userID)) {
+                Text("View Chores")
+                    .font(.headline)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
             }
             .padding(.horizontal)
+            
             Spacer()
             
         }
@@ -87,5 +97,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView(name: "Test User", groupName: "Test Group")
+    HomeView(name: "Test User", groupName: "Test Group", userID: "")
 }
