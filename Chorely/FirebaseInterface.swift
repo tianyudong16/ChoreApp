@@ -256,23 +256,20 @@ func editChore(documentId: String, checklist: Bool, date: String, day: String, d
     
 }
 
-// I (Tian) don't think this is necessary. The user is able to join a group through a groupKey that is randomly generated
-//Not cpmplete yet also need to change the way of implementation
-/*
-func joinGroup(userId: String, groupId: String, completion: @escaping (Bool) -> Void){
-
-    db.collection("groups").document(groupId).updateData([
-        "members": userId
-    ]) {err in
-        if let err = err{
-            print("Error joining group: \(err)")
-            completion(false)
+//userId is the documentId of the user
+//function is to change the groupKey of user to the group's groupKey
+//created by Ron on 11.19
+func joinGroup(userId: String, groupKey: Int) async {
+    do {
+        let userData = db.collection("users").document(userId)
+        let snapshot = try await userData.getDocument()
+        guard snapshot.exists else{
+            print("User document not found for id \(userId)")
             return
         }
-        
-        print("User joined successfully!")
-        
-        completion(true)
+        try await userData.updateData(["groupKey": groupKey])
+        print("Updated groupkey for user \(userId)")
+    } catch {
+        print("Failed to join", error)
     }
 }
- */
