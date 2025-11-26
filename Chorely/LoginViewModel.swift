@@ -52,7 +52,16 @@ final class LoginViewModel: ObservableObject {
                 
             } catch {
                 print("Error: \(error)")
-                errorMessage = "Login failed: \(error.localizedDescription)"
+                // ADDED ERROR HANDLING FOR NON-EXISTENT USER
+                if let authError = error as NSError? {
+                    if authError.code == 17004 || authError.code == 17011 {
+                        errorMessage = "No account found. Please register first."
+                    } else {
+                        errorMessage = "Login failed: \(error.localizedDescription)"
+                    }
+                } else {
+                    errorMessage = "Login failed: \(error.localizedDescription)"
+                }
                 completion(false, nil)
             }
         }

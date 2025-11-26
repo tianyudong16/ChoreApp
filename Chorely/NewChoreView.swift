@@ -2,8 +2,6 @@
 //  NewChoreView.swift
 //  Chorely
 //
-//  Created by Tian Yu Dong on 11/25/25.
-//
 
 import SwiftUI
 
@@ -17,41 +15,63 @@ struct NewChoreView: View {
                 .bold()
                 .font(.system(size: 32))
                 .padding(.top, 50)
-        }
-        
-        Form {
-            // Title
-            TextField("Title", text: $viewModel.title)
-                .textFieldStyle(DefaultTextFieldStyle())
             
-            // Due Date
-            DatePicker("Due Date", selection: $viewModel.dueDate)
-                .datePickerStyle(GraphicalDatePickerStyle())
-            
-            // Button
-            ChorelyButton(title: "Save",
-                          background: .pink) {
-                if viewModel.canSave {
-                    viewModel.save()
-                    newChorePresented = false
+            Form {
+                TextField("Title", text: $viewModel.title)
+                    .textFieldStyle(DefaultTextFieldStyle())
+                
+                DatePicker("Due Date", selection: $viewModel.dueDate)
+                    .datePickerStyle(GraphicalDatePickerStyle())
+                
+                TextField("Description (optional)", text: $viewModel.description)
+                    .textFieldStyle(DefaultTextFieldStyle())
+                
+                Section {
+                    Picker("Priority", selection: $viewModel.priorityLevel) {
+                        Text("Low").tag("low")
+                        Text("Medium").tag("medium")
+                        Text("High").tag("high")
+                    }
+                    .pickerStyle(.segmented)
+                }
+                
+                Section {
+                    Picker("Repeat", selection: $viewModel.repetitionTime) {
+                        Text("Does not repeat").tag("None")
+                        Text("Daily").tag("Daily")
+                        Text("Weekly").tag("Weekly")
+                        Text("Monthly").tag("Monthly")
+                        Text("Yearly").tag("Yearly")
+                    }
+                    .pickerStyle(.menu)
+                }
+                .padding(.bottom, 60)
+                
+                // Loading or Save Button
+                if viewModel.isLoading {
+                    Text("Loading your group...")
+                        .foregroundColor(.secondary)
+                        .italic()
                 } else {
-                    viewModel.showAlert = true
+                    ChorelyButton(title: "Save", background: .pink) {
+                        viewModel.save()
+                        newChorePresented = false
+                    }
+                    .padding()
+                    .disabled(!viewModel.canSave)
                 }
             }
-            .padding()
-        }
-        .alert(isPresented: $viewModel.showAlert) {
-            Alert(
-                title: Text("Error"),
-                message: Text("Please fill in all fields and select due date that is today or newer.")
-            )
+            
+            .alert(isPresented: $viewModel.showAlert) {
+                Alert(
+                    title: Text("Error"),
+                    message: Text("Please enter a title and make sure you're in a group.")
+                )
+            }
         }
     }
 }
 
 #Preview {
-    NewChoreView(newChorePresented: Binding(get: {
-        return true
-    }, set: { _ in
-    }))
+    NewChoreView(newChorePresented: .constant(true))
 }

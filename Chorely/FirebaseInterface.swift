@@ -67,20 +67,25 @@ class FirebaseInterface {
             user: authDataResult.user
         )
         
+        // I (Tian) created this groupKey randomizer for creating a new group
+        // TODO: Perhaps a way to prevent generating duplicate numbers
+        let newGroupKey = groupKey ?? Int.random(in: 100000...999999)
+        
         //This block of code adds user information to the Users collection (written by Ron, added to by Milo)
         do {
             try await db.collection("Users").document(result.uid).setData([
                 "Email": email,
-                "Name": name,//Note that the "Name" field on firestore is capitalized, but no other fields are
-                "color": color ?? "Green",//Green is a default value if color is nil
-                "groupKey": groupKey ?? 111111,//111111 is also a default value
+                "Name": name,
+                "color": color ?? "Green",
+                "groupKey": newGroupKey,
                 "groupName": groupName,
                 "password": password,
-                "roommate names": roommatesNames ?? [],//If no roommates are speficied, an empty list (not sure if firebase will like this lol)
+                "roommate names": roommatesNames ?? [],
             ])
             print("User added successfully!")
         } catch {
             print("Error adding document: \(error)")
+            throw error // added this line for error handling
         }
 
         return result
@@ -251,7 +256,9 @@ func editChore(documentId: String, checklist: Bool, date: String, day: String, d
     
 }
 
+// I (Tian) don't think this is necessary. The user is able to join a group through a groupKey that is randomly generated
 //Not cpmplete yet also need to change the way of implementation
+/*
 func joinGroup(userId: String, groupId: String, completion: @escaping (Bool) -> Void){
 
     db.collection("groups").document(groupId).updateData([
@@ -268,3 +275,4 @@ func joinGroup(userId: String, groupId: String, completion: @escaping (Bool) -> 
         completion(true)
     }
 }
+ */
