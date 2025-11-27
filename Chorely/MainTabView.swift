@@ -27,7 +27,7 @@ struct MainTabView: View {
                 .tag(1)
             
             NavigationStack {
-                ProfileView(onLogout: onLogout)
+                ProfileView(userID: user.uid, onLogout: onLogout)
             }
                 .tabItem { Label("Profile", systemImage:"person.crop.circle")}
                 .tag(2)
