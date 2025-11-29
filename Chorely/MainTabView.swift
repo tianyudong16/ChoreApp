@@ -15,16 +15,22 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack {
-                HomeView(name: user.name, groupName: user.groupName, userID: user.uid)
+                HomeView(
+                    name: user.name,
+                    groupName: user.groupName,
+                    userID: user.uid
+                )
             }
-                .tabItem { Label("Home", systemImage: "house.fill") }
-                .tag(0)
+            .tabItem { Label("Home", systemImage: "house.fill") }
+            .tag(0)
             
             NavigationStack {
-                CalendarView()
+                CalendarView(
+                    userID: user.uid
+                )
             }
-                .tabItem { Label("Calendar", systemImage: "calendar") }
-                .tag(1)
+            .tabItem { Label("Calendar", systemImage: "calendar") }
+            .tag(1)
             
             NavigationStack {
                 ProfileView(userID: user.uid, onLogout: onLogout)
