@@ -172,8 +172,36 @@ class FirebaseInterface {
     }
     
     //Marks a chore as complete, also records who did the chore
-    func markComplete(user: UserInfo){
+    //userName is for passing down the string of the name of user who did the chore
+    //choreId is the documentation id of the chore and should be just the name of the chore
+    //groupKey is the groupKey of the chore
+    //Implemented by Ron on 11.30.2025
+    func markComplete(userName: String, choreId: String, groupKey: String){
+        let chore = db.collection("chores").document("groups").collection(groupKey).document(choreId)
         
+        chore.getDocument { snapshot, error in
+            if let error = error {
+                print("Error fetching chore: \(error)")
+                return
+            }
+
+            let data = snapshot?.data() ?? [:]
+            let oldDescription = data["Description"] as? String ?? ""
+
+            let newDescription = oldDescription + "\n\(userName) did the chore."
+
+            chore.updateData([
+                "Checklist": true,
+                "completed": true,
+                "Description": newDescription
+            ]) { error in
+                if let error = error {
+                    print("Error marking complete: \(error)")
+                } else {
+                    print("Chore \(choreId) marked complete by \(userName)")
+                }
+            }
+        }
     }
     //We need to make a chore log repository for this
     //Also, for repeating chores, we will need to make it so that the chore is marked as "uncomplete" before it's due again.
