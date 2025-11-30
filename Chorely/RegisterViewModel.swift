@@ -97,26 +97,9 @@ class RegisterViewModel: ObservableObject {
             do {
                 print("DEBUG: Searching for groupKey: \(groupKeyInt) (type: Int)")
                 
-                // First try searching with Int type
-                var snapshot = try await FirebaseInterface.shared.firestore
-                    .collection("Users")
-                    .whereField("groupKey", isEqualTo: groupKeyInt)
-                    .limit(to: 1)
-                    .getDocuments()
+                let result = try await FirebaseInterface.shared.checkGroupExistsAsync(groupKey: groupKeyInt)
                 
-                // If not found as Int, try as String (in case of data inconsistency)
-                if snapshot.documents.isEmpty {
-                    print("DEBUG: Not found as Int, trying as String...")
-                    snapshot = try await FirebaseInterface.shared.firestore
-                        .collection("Users")
-                        .whereField("groupKey", isEqualTo: groupCode)
-                        .limit(to: 1)
-                        .getDocuments()
-                }
-                
-                print("DEBUG: Found \(snapshot.documents.count) documents")
-                
-                guard !snapshot.documents.isEmpty else {
+                guard result.exists, let existingUserData = result.userData else {
                     await MainActor.run {
                         self.errorMessage = "Invalid group code. No group found with code: \(groupCode)"
                     }
@@ -124,12 +107,10 @@ class RegisterViewModel: ObservableObject {
                     return
                 }
                 
-                let existingUserData = snapshot.documents[0].data()
                 print("DEBUG: Found user data: \(existingUserData)")
                 
                 let actualGroupName = existingUserData["groupName"] as? String ?? "Home Group"
                 
-                // Now create the new user with the SAME groupKey (as Int)
                 let returnedUserData = try await FirebaseInterface.shared.addUser(
                     name: self.name,
                     email: self.email,

@@ -9,223 +9,157 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 
-// MARK: - ChoreListItem Model
-/// Model for displaying a chore in the chores list
-/// Named "ChoreListItem" to avoid conflict with other ChoreItem definitions in the project
-struct ChoreListItem: Identifiable {
-    let id: String // Firebase document ID
-    let name: String // Chore name/title
-    let description: String // Optional description
-    let date: String // Due date as string (e.g., "2025-01-15")
-    let day: String // Day of week (e.g., "Monday")
-    let priorityLevel: String // "low", "medium", or "high"
-    let repetitionTime: String // "None", "Daily", "Weekly", etc.
-    let timeLength: Int // Estimated time in minutes
-    let assignedUsers: [String] // Array of user IDs assigned to this chore
-    var completed: Bool // Whether the chore is completed
-    
-    /// Returns the color name based on priority level
-    var priorityColor: String {
-        switch priorityLevel.lowercased() {
-        case "high":
-            return "red"
-        case "medium":
-            return "orange"
-        default:
-            return "green"
-        }
-    }
-}
-
-// MARK: - ChoresViewModel
-/// ViewModel for the list of chores view
-/// Handles fetching, displaying, and managing chores from Firebase
-/// Primary location for chores when "View Chores" button is clicked on the home page
 @MainActor
 class ChoresViewModel: ObservableObject {
     
-    // MARK: - Published Properties (UI State)
-    @Published var showingNewChoreView = false // Controls the new chore sheet
-    @Published var chores: [ChoreListItem] = [] // Array of chores to display
-    @Published var isLoading = true // Shows loading spinner
-    @Published var errorMessage = "" // Error message to display
+    @Published var showingNewChoreView = false
+    @Published var chores: [String: Chore] = [:]
+    @Published var isLoading = true
+    @Published var errorMessage = ""
     
-    // MARK: - Private Properties
-    private var groupKey: String? // User's group key for fetching chores
-    private var listener: ListenerRegistration? // Firestore real-time listener
+    private var groupKey: String?
+    private var groupKeyInt: Int?
+    private var currentUserName: String = ""
+    private var listener: ListenerRegistration?
     
     init() {}
     
-    // MARK: - Public Methods
+    // sorts the chores based on ID
+    // earlier date gets priority, and then completed chores is at the bottom of the list
+    var sortedChoreIDs: [String] {
+        chores.keys.sorted { id1, id2 in
+            guard let chore1 = chores[id1], let chore2 = chores[id2] else { return false }
+            
+            if chore1.completed != chore2.completed {
+                return !chore1.completed // returns uncompleted chore
+            }
+            if chore1.date != chore2.date {
+                return chore1.date < chore2.date // checks date
+            }
+            return priorityRank(chore1.priorityLevel) < priorityRank(chore2.priorityLevel)
+        }
+    }
     
-    /// Fetches the user's groupKey from Firebase, then loads their group's chores
-    /// - Parameter userID: The Firebase Auth UID of the current user
     func loadChores(userID: String) {
         isLoading = true
         errorMessage = ""
         
-        // Step 1: Get the user's document to find their groupKey
-        FirebaseInterface.shared.firestore
-            .collection("Users")
-            .document(userID)
-            .getDocument { [weak self] snapshot, error in
-                guard let self = self else { return }
+        Task {
+            do {
+                let userData = try await FirebaseInterface.shared.getUserData(uid: userID)
+                let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
                 
-                // Handle errors fetching user document
-                if let error = error {
-                    DispatchQueue.main.async {
-                        self.errorMessage = "Error loading user: \(error.localizedDescription)"
-                        self.isLoading = false
-                    }
+                self.currentUserName = userData["Name"] as? String ?? "User"
+                
+                guard let key = keys.string else {
+                    self.errorMessage = "No group key found"
+                    self.isLoading = false
                     return
                 }
                 
-                // Make sure user data exists
-                guard let data = snapshot?.data() else {
-                    DispatchQueue.main.async {
-                        self.errorMessage = "User data not found"
-                        self.isLoading = false
-                    }
-                    return
-                }
+                self.groupKey = key
+                self.groupKeyInt = keys.int
+                self.setupChoresListener(groupKey: key)
                 
-                // Extract groupKey - it could be stored as Int or String in Firebase
-                var groupKeyString: String?
-                if let intKey = data["groupKey"] as? Int {
-                    groupKeyString = String(intKey)
-                } else if let strKey = data["groupKey"] as? String {
-                    groupKeyString = strKey
-                }
-                
-                // Make sure we found a groupKey
-                guard let key = groupKeyString else {
-                    DispatchQueue.main.async {
-                        self.errorMessage = "No group key found"
-                        self.isLoading = false
-                    }
-                    return
-                }
-                
-                // Step 2: Now set up the chores listener with the groupKey
-                DispatchQueue.main.async {
-                    self.groupKey = key
-                    self.setupChoresListener(groupKey: key)
-                }
+            } catch {
+                self.errorMessage = "Error loading user: \(error.localizedDescription)"
+                self.isLoading = false
             }
+        }
     }
     
-    /// Toggles a chore's completion status in Firebase
-    /// chore parameter toggles the chore to be completed
-    func toggleChoreCompletion(_ chore: ChoreListItem) {
-        guard let groupKey = groupKey else { return }
+    func toggleChoreCompletion(choreID: String) {
+        guard let groupKey = groupKey,
+              let groupKeyInt = groupKeyInt,
+              let chore = chores[choreID] else { return }
         
-        // Update the 'completed' field to the opposite value
-        FirebaseInterface.shared.firestore
-            .collection("chores")
-            .document("group")
-            .collection(groupKey)
-            .document(chore.id)
-            .updateData(["completed": !chore.completed]) { error in
-                if let error = error {
-                    print("Error updating chore: \(error)")
+        if chore.completed {
+            editChore( // calls editChore function from FirebaseInterface
+                documentId: choreID,
+                checklist: chore.checklist,
+                date: chore.date,
+                day: chore.day,
+                description: chore.description,
+                monthlyrepeatbydate: chore.monthlyRepeatByDate,
+                monthlyrepeatbyweek: chore.monthlyRepeatByWeek,
+                Name: chore.name,
+                PriorityLevel: chore.priorityLevel,
+                RepetitionTime: chore.repetitionTime,
+                TimeLength: chore.timeLength,
+                assignedUsers: chore.assignedUsers,
+                completed: false,
+                groupKey: groupKeyInt
+            ) { success in
+                if success {
+                    print("Chore unchecked successfully")
                 }
             }
+        } else {
+            FirebaseInterface.shared.markComplete(
+                userName: currentUserName,
+                choreId: choreID,
+                groupKey: groupKey
+            )
+        }
     }
     
-    /// Deletes a chore from Firebase
-    /// - Parameter chore: The chore to delete
-    func deleteChore(_ chore: ChoreListItem) {
+    func deleteChore(choreID: String) {
         guard let groupKey = groupKey else { return }
-        
-        FirebaseInterface.shared.firestore
-            .collection("chores")
-            .document("group")
-            .collection(groupKey)
-            .document(chore.id)
-            .delete { error in
-                if let error = error {
-                    print("Error deleting chore: \(error)")
-                }
-            }
+        FirebaseInterface.shared.deleteChore(groupKey: groupKey, choreId: choreID)
     }
     
-    // MARK: - Private Methods
-    
-    /// Sets up a real-time Firestore listener for the group's chores
-    /// This means the UI will automatically update when chores are added/changed/deleted
-    /// - Parameter groupKey: The group's key to fetch chores for
     private func setupChoresListener(groupKey: String) {
-        // Remove any existing listener to avoid duplicates
         listener?.remove()
         
-        // Set up listener on the chores/group/{groupKey} collection
-        listener = FirebaseInterface.shared.firestore
-            .collection("chores")
-            .document("group")
-            .collection(groupKey)
-            .addSnapshotListener { [weak self] querySnapshot, error in
-                guard let self = self else { return }
+        listener = FirebaseInterface.shared.addChoresListener(groupKey: groupKey) { [weak self] documents, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
                 
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    
-                    // Handle any errors
-                    if let error = error {
-                        self.errorMessage = "Error loading chores: \(error.localizedDescription)"
-                        return
-                    }
-                    
-                    // If no documents, set empty array
-                    guard let documents = querySnapshot?.documents else {
-                        self.chores = []
-                        return
-                    }
-                    
-                    // Convert Firestore documents to ChoreListItem objects
-                    // compactMap filters out any nil values (documents that fail to parse)
-                    self.chores = documents.compactMap { doc -> ChoreListItem? in
-                        let data = doc.data()
-                        
-                        // Name is required - skip documents without it
-                        guard let name = data["Name"] as? String else { return nil }
-                        
-                        return ChoreListItem(
-                            id: doc.documentID,
-                            name: name,
-                            description: data["Description"] as? String ?? "",
-                            date: data["Date"] as? String ?? "",
-                            day: data["Day"] as? String ?? "",
-                            priorityLevel: data["PriorityLevel"] as? String ?? "low",
-                            repetitionTime: data["RepetitionTime"] as? String ?? "None",
-                            timeLength: data["TimeLength"] as? Int ?? 0,
-                            assignedUsers: data["assignedUsers"] as? [String] ?? [],
-                            completed: data["completed"] as? Bool ?? false
-                        )
-                    }
-                    
-                    // Sort chores: uncompleted first, then by date, then by priority
-                    self.chores.sort { chore1, chore2 in
-                        // Completed chores go to the bottom
-                        if chore1.completed != chore2.completed {
-                            return !chore1.completed
-                        }
-                        // Sort by date (earlier dates first)
-                        if chore1.date != chore2.date {
-                            return chore1.date < chore2.date
-                        }
-                        // Sort by priority (high > medium > low)
-                        let priority1 = self.priorityRank(chore1.priorityLevel)
-                        let priority2 = self.priorityRank(chore2.priorityLevel)
-                        return priority1 < priority2
-                    }
-                    
-                    print("Loaded \(self.chores.count) chores")
+                if let error = error {
+                    self.errorMessage = "Error loading chores: \(error.localizedDescription)"
+                    return
                 }
+                
+                guard let documents = documents else {
+                    self.chores = [:]
+                    return
+                }
+                
+                self.chores = self.readChoreDocuments(documents)
+                print("Loaded \(self.chores.count) chores")
             }
+        }
     }
     
-    /// Converts priority string to a numeric rank for sorting
-    /// Lower number = higher priority
+    private func readChoreDocuments(_ documents: [QueryDocumentSnapshot]) -> [String: Chore] {
+        var result: [String: Chore] = [:]
+        
+        for doc in documents {
+            let data = doc.data()
+            guard let name = data["Name"] as? String else { continue }
+            
+            let chore = Chore(
+                checklist: data["Checklist"] as? Bool ?? false,
+                date: data["Date"] as? String ?? "",
+                day: data["Day"] as? String ?? "",
+                description: data["Description"] as? String ?? " ",
+                monthlyRepeatByDate: data["MonthlyRepeatByDate"] as? Bool ?? false,
+                monthlyRepeatByWeek: data["MonthlyRepeatByWeek"] as? String ?? " ",
+                name: name,
+                priorityLevel: data["PriorityLevel"] as? String ?? "low",
+                repetitionTime: data["RepetitionTime"] as? String ?? "None",
+                timeLength: data["TimeLength"] as? Int ?? 0,
+                assignedUsers: data["assignedUsers"] as? [String] ?? [],
+                completed: data["completed"] as? Bool ?? false
+            )
+            result[doc.documentID] = chore
+        }
+        
+        return result
+    }
+    
     private func priorityRank(_ priority: String) -> Int {
         switch priority.lowercased() {
         case "high": return 0
@@ -234,10 +168,6 @@ class ChoresViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Cleanup
-    
-    /// Called when the ViewModel is deallocated
-    /// Removes the Firestore listener to prevent memory leaks
     deinit {
         listener?.remove()
     }

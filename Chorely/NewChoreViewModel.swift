@@ -10,25 +10,21 @@ import FirebaseAuth
 import FirebaseFirestore
 
 class NewChoreViewModel: ObservableObject {
-    // MARK: - Form Fields
     @Published var title = ""
     @Published var description = ""
     @Published var dueDate = Date()
     @Published var priorityLevel = "low"
     @Published var repetitionTime = "None"
     
-    // MARK: - UI State
     @Published var showAlert = false
-    @Published var isLoading = true // Shows "Loading your group..."
+    @Published var isLoading = true
     
-    // MARK: - Private
     private var groupKey: String?
     
     init() {
         fetchGroupKey()
     }
     
-    // MARK: - Fetch Group Key (only once)
     private func fetchGroupKey() {
         guard let uid = Auth.auth().currentUser?.uid else {
             DispatchQueue.main.async {
@@ -41,24 +37,12 @@ class NewChoreViewModel: ObservableObject {
         Task {
             do {
                 let userData = try await FirebaseInterface.shared.getUserData(uid: uid)
-                
-                // TRY ALL POSSIBLE WAYS groupKey is stored
-                var key: String?
-                
-                if let intKey = userData["groupKey"] as? Int {
-                    key = String(intKey)
-                } else if let intKey = userData["GroupKey"] as? Int {
-                    key = String(intKey)
-                } else if let strKey = userData["groupKey"] as? String {
-                    key = strKey
-                } else if let strKey = userData["GroupKey"] as? String {
-                    key = strKey
-                }
+                let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
                 
                 await MainActor.run {
-                    self.groupKey = key
+                    self.groupKey = keys.string
                     self.isLoading = false
-                    print("FINAL GROUP KEY LOADED: \(key ?? "NIL")")
+                    print("GROUP KEY LOADED: \(keys.string ?? "NIL")")
                 }
             } catch {
                 await MainActor.run {
@@ -70,14 +54,12 @@ class NewChoreViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Checks if chore can be saved
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !isLoading &&
         groupKey != nil
     }
     
-    // MARK: - Save Chore
     func save() {
         guard canSave, let groupKey = groupKey else {
             showAlert = true
@@ -91,37 +73,28 @@ class NewChoreViewModel: ObservableObject {
         dateFormatter.dateFormat = "EEEE"
         let dayStr = dateFormatter.string(from: dueDate)
         
-        let choreData: [String: Any] = [
-            "Checklist": false,
-            "Date": dateStr,
-            "Day": dayStr,
-            "Description": description,
-            "MonthlyRepeatByDate": false,
-            "MonthlyRepeatByWeek": "",
-            "Name": title,
-            "PriorityLevel": priorityLevel,
-            "RepetitionTime": repetitionTime,
-            "TimeLength": 30,
-            "assignedUsers": [],
-            "completed": false
-        ]
+        let newChore = Chore(
+            checklist: false,
+            date: dateStr,
+            day: dayStr,
+            description: description,
+            monthlyRepeatByDate: false,
+            monthlyRepeatByWeek: "",
+            name: title,
+            priorityLevel: priorityLevel,
+            repetitionTime: repetitionTime,
+            timeLength: 30,
+            assignedUsers: [],
+            completed: false
+        )
         
-        FirebaseInterface.shared.firestore
-            .collection("chores")
-            .document("group")
-            .collection(groupKey)
-            .addDocument(data: choreData) { error in
-                if let error = error {
-                    print("Save failed: \(error)")
-                } else {
-                    print("Chore saved successfully!")
-                    // Reset form
-                    DispatchQueue.main.async {
-                        self.title = ""
-                        self.description = ""
-                        self.dueDate = Date()
-                    }
-                }
-            }
+        addChore(chore: newChore, groupKey: groupKey)
+        resetForm()
+    }
+    
+    private func resetForm() {
+        title = ""
+        description = ""
+        dueDate = Date()
     }
 }

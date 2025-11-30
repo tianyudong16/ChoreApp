@@ -10,6 +10,8 @@ import FirebaseCore
 import FirebaseFirestore
 import FirebaseAuth
 
+let db = FirebaseInterface.shared.firestore
+
 //Following Nick Sarno's SwiftfulThinking tutorial for some of the authentication code
 struct AuthDataResultModel {
     let uid: String
@@ -191,7 +193,6 @@ class FirebaseInterface {
             let newDescription = oldDescription + "\n\(userName) did the chore."
 
             chore.updateData([
-                "Checklist": true,
                 "completed": true,
                 "Description": newDescription
             ]) { error in
@@ -220,15 +221,13 @@ class FirebaseInterface {
                 if snapshot?.exists == true {
                     print("The Log already exists, ending the function here")
                     return
-                } else {
-                    //The Log has not yet been created, and we are ok to move on.
                 }
             }
         }
         
         let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
         do {
-            let names = try await getGroupMembers(groupKey: groupKeyAsInt ?? 0)//To fix: have a proper fail case instead of just 0
+            let names = try await getGroupMembers(groupKey: groupKeyAsInt ?? 0)
             print(names)
         } catch {
             print("Error getting document: \(error)")
@@ -259,6 +258,161 @@ class FirebaseInterface {
     //We won't implement this until we decide how the chore proposal system should work
     func getProposedChores(){
         
+    }
+    
+    // New consolidated functions for chore and user operations
+    
+    // Extracts groupKey from user data, handling both Int and String types
+    func extractGroupKey(from userData: [String: Any]) -> (string: String?, int: Int?) {
+        var groupKeyString: String?
+        var groupKeyInt: Int?
+        
+        if let intKey = userData["groupKey"] as? Int {
+            groupKeyString = String(intKey)
+            groupKeyInt = intKey
+        } else if let strKey = userData["groupKey"] as? String {
+            groupKeyString = strKey
+            groupKeyInt = Int(strKey)
+        } else if let intKey = userData["GroupKey"] as? Int {
+            groupKeyString = String(intKey)
+            groupKeyInt = intKey
+        } else if let strKey = userData["GroupKey"] as? String {
+            groupKeyString = strKey
+            groupKeyInt = Int(strKey)
+        }
+        
+        return (groupKeyString, groupKeyInt)
+    }
+    
+    // Gets the groupKey for a specific user
+    func getGroupKey(forUserID userID: String) async throws -> (string: String?, int: Int?) {
+        let userData = try await getUserData(uid: userID)
+        return extractGroupKey(from: userData)
+    }
+    
+    // Sets up a real-time listener for chores in a group
+    func addChoresListener(groupKey: String, onChange: @escaping ([QueryDocumentSnapshot]?, Error?) -> Void) -> ListenerRegistration {
+        return db
+            .collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .addSnapshotListener { querySnapshot, error in
+                onChange(querySnapshot?.documents, error)
+            }
+    }
+    
+    // Sets up a real-time listener for group members
+    func addGroupMembersListener(groupKey: Int, onChange: @escaping ([QueryDocumentSnapshot]?, Error?) -> Void) -> ListenerRegistration {
+        return db
+            .collection("Users")
+            .whereField("groupKey", isEqualTo: groupKey)
+            .addSnapshotListener { querySnapshot, error in
+                onChange(querySnapshot?.documents, error)
+            }
+    }
+    
+    // just used to only toggle the chore completion. Different to markComplete
+    func updateChoreCompletion(groupKey: String, choreId: String, completed: Bool, completion: ((Error?) -> Void)? = nil) {
+        db
+            .collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .document(choreId)
+            .updateData(["completed": completed]) { error in
+                if let error = error {
+                    print("Error updating chore: \(error)")
+                }
+                completion?(error)
+            }
+    }
+    
+    // Deletes a chore from a group
+    func deleteChore(groupKey: String, choreId: String, completion: ((Error?) -> Void)? = nil) {
+        db
+            .collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .document(choreId)
+            .delete { error in
+                if let error = error {
+                    print("Error deleting chore: \(error)")
+                }
+                completion?(error)
+            }
+    }
+    
+    // Fetches all users in a group (non-listener version)
+    func fetchGroupMembers(groupKey: Int, completion: @escaping ([QueryDocumentSnapshot]?, Error?) -> Void) {
+        db
+            .collection("Users")
+            .whereField("groupKey", isEqualTo: groupKey)
+            .getDocuments { querySnapshot, error in
+                completion(querySnapshot?.documents, error)
+            }
+    }
+    
+    // Updates a specific field for a user by their userID
+    func updateUserField(userID: String, field: String, value: Any, completion: ((Error?) -> Void)? = nil) {
+        db
+            .collection("Users")
+            .document(userID)
+            .updateData([field: value]) { error in
+                if let error = error {
+                    print("Error updating \(field): \(error)")
+                }
+                completion?(error)
+            }
+    }
+    
+    // Saves a new chore to Firebase and returns the document reference
+    func saveChore(groupKey: String, choreData: [String: Any], completion: ((Error?) -> Void)? = nil) {
+        db
+            .collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .addDocument(data: choreData) { error in
+                if let error = error {
+                    print("Save failed: \(error)")
+                } else {
+                    print("Chore saved successfully!")
+                }
+                completion?(error)
+            }
+    }
+    
+    // Checks if a group exists by groupKey
+    func checkGroupExists(groupKey: Int, completion: @escaping (Bool, [String: Any]?) -> Void) {
+        db
+            .collection("Users")
+            .whereField("groupKey", isEqualTo: groupKey)
+            .limit(to: 1)
+            .getDocuments { querySnapshot, error in
+                if let error = error {
+                    print("Error checking group: \(error)")
+                    completion(false, nil)
+                    return
+                }
+                
+                if let documents = querySnapshot?.documents, !documents.isEmpty {
+                    completion(true, documents[0].data())
+                } else {
+                    completion(false, nil)
+                }
+            }
+    }
+    
+    // Async version of checkGroupExists
+    func checkGroupExistsAsync(groupKey: Int) async throws -> (exists: Bool, userData: [String: Any]?) {
+        let snapshot = try await db
+            .collection("Users")
+            .whereField("groupKey", isEqualTo: groupKey)
+            .limit(to: 1)
+            .getDocuments()
+        
+        if let document = snapshot.documents.first {
+            return (true, document.data())
+        }
+        return (false, nil)
     }
 }
 

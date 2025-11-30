@@ -18,9 +18,6 @@ struct UserInfo: Hashable {
     let email: String
 }
 
-
-let db = FirebaseInterface.shared.firestore
-
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
     @State private var currentUser: UserInfo? = nil

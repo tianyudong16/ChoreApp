@@ -34,12 +34,10 @@ struct GroupMember: Identifiable {
 }
 
 // Home Screen
-// Home Screen
 struct HomeView: View {
     var name: String
     var groupName: String
     var userID: String
-    // Remove the calendarViewModel parameter and create local instance
     @StateObject private var calendarViewModel = CalendarViewModel()
     
     @State private var showApprovalAlert = false
@@ -50,13 +48,9 @@ struct HomeView: View {
     var body: some View {
         VStack {
             welcomeHeader
-            
             groupMembersSection
-            
             Spacer()
-            
             actionButtonsSection
-            
             Spacer()
         }
         .padding()
@@ -85,12 +79,10 @@ struct HomeView: View {
         }
         .onAppear {
             fetchGroupMembers()
-            // Load data for the calendar view model
             calendarViewModel.loadData(userID: userID)
         }
     }
     
-    // MARK: - Subviews
     private var welcomeHeader: some View {
         VStack {
             Text("Welcome \(name)!")
@@ -115,42 +107,11 @@ struct HomeView: View {
                 .foregroundColor(.secondary)
             
             if isLoadingMembers {
-                HStack {
-                    ProgressView()
-                        .padding(.trailing, 8)
-                    Text("Loading members...")
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 8)
+                loadingMembersView
             } else if groupMembers.isEmpty {
-                Text("No members found")
-                    .foregroundColor(.secondary)
-                    .italic()
+                emptyMembersView
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        ForEach(groupMembers) { member in
-                            VStack(spacing: 8) {
-                                Circle()
-                                    .fill(member.color)
-                                    .frame(width: 50, height: 50)
-                                    .overlay(
-                                        Text(String(member.name.prefix(1)).uppercased())
-                                            .font(.title2.bold())
-                                            .foregroundColor(.white)
-                                    )
-                                    .shadow(color: member.color.opacity(0.4), radius: 4, y: 2)
-                                
-                                Text(member.name)
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                    .frame(maxWidth: 70)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 4)
-                }
+                membersScrollView
             }
         }
         .padding()
@@ -161,87 +122,138 @@ struct HomeView: View {
         .padding(.horizontal)
     }
     
+    private var loadingMembersView: some View {
+        HStack {
+            ProgressView()
+                .padding(.trailing, 8)
+            Text("Loading members...")
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 8)
+    }
+    
+    private var emptyMembersView: some View {
+        Text("No members found")
+            .foregroundColor(.secondary)
+            .italic()
+    }
+    
+    private var membersScrollView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ForEach(groupMembers) { member in
+                    MemberAvatarView(member: member)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+    
     private var actionButtonsSection: some View {
         VStack(spacing: 12) {
             NavigationLink(destination: DailyTasksView(userID: userID, selectedDate: Date(), viewModel: calendarViewModel)) {
-                Text("Today's Chores")
-                    .font(.headline)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                ActionButtonLabel(title: "Today's Chores", color: .green)
             }
             
             NavigationLink(destination: ChoresView(userID: userID)) {
-                Text("View Chores")
-                    .font(.headline)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                ActionButtonLabel(title: "View Chores", color: .blue)
             }
         }
         .padding(.horizontal)
     }
     
-    // MARK: - Private Methods
     private func fetchGroupMembers() {
         isLoadingMembers = true
         
-        // First get the current user's groupKey
-        FirebaseInterface.shared.firestore
-            .collection("Users")
-            .document(userID)
-            .getDocument { snapshot, error in
-                if let error = error {
+        Task {
+            do {
+                let userData = try await FirebaseInterface.shared.getUserData(uid: userID)
+                let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
+                
+                guard let groupKeyInt = keys.int else {
+                    print("Could not find groupKey for current user")
+                    await MainActor.run { isLoadingMembers = false }
+                    return
+                }
+                
+                FirebaseInterface.shared.fetchGroupMembers(groupKey: groupKeyInt) { documents, error in
+                    DispatchQueue.main.async {
+                        isLoadingMembers = false
+                        
+                        if let error = error {
+                            print("Error fetching group members: \(error)")
+                            return
+                        }
+                        
+                        guard let documents = documents else {
+                            print("No documents found")
+                            return
+                        }
+                        
+                        groupMembers = readMemberDocuments(documents)
+                        print("Loaded \(groupMembers.count) group members")
+                    }
+                }
+            } catch {
+                await MainActor.run {
                     print("Error fetching current user: \(error)")
                     isLoadingMembers = false
-                    return
                 }
-                
-                guard let data = snapshot?.data(),
-                      let groupKey = data["groupKey"] as? Int else {
-                    print("Could not find groupKey for current user")
-                    isLoadingMembers = false
-                    return
-                }
-                
-                // Now fetch all users with the same groupKey
-                FirebaseInterface.shared.firestore
-                    .collection("Users")
-                    .whereField("groupKey", isEqualTo: groupKey)
-                    .getDocuments { querySnapshot, error in
-                        DispatchQueue.main.async {
-                            isLoadingMembers = false
-                            
-                            if let error = error {
-                                print("Error fetching group members: \(error)")
-                                return
-                            }
-                            
-                            guard let documents = querySnapshot?.documents else {
-                                print("No documents found")
-                                return
-                            }
-                            
-                            groupMembers = documents.compactMap { doc -> GroupMember? in
-                                let data = doc.data()
-                                guard let name = data["Name"] as? String else { return nil }
-                                let colorString = data["color"] as? String ?? "Green"
-                                
-                                return GroupMember(
-                                    id: doc.documentID,
-                                    name: name,
-                                    color: GroupMember.colorFromString(colorString)
-                                )
-                            }
-                            
-                            print("Loaded \(groupMembers.count) group members")
-                        }
-                    }
             }
+        }
+    }
+    
+    private func readMemberDocuments(_ documents: [QueryDocumentSnapshot]) -> [GroupMember] {
+        return documents.compactMap { doc -> GroupMember? in
+            let data = doc.data()
+            guard let name = data["Name"] as? String else { return nil }
+            let colorString = data["color"] as? String ?? "Green"
+            
+            return GroupMember(
+                id: doc.documentID,
+                name: name,
+                color: GroupMember.colorFromString(colorString)
+            )
+        }
+    }
+}
+
+struct MemberAvatarView: View {
+    let member: GroupMember
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Circle()
+                .fill(member.color)
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Text(String(member.name.prefix(1)).uppercased())
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+                )
+                .shadow(color: member.color.opacity(0.4), radius: 4, y: 2)
+            
+            Text(member.name)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .frame(maxWidth: 70)
+        }
+    }
+}
+
+struct ActionButtonLabel: View {
+    let title: String
+    let color: Color
+    
+    var body: some View {
+        Text(title)
+            .font(.headline)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(color)
+            .foregroundColor(.white)
+            .cornerRadius(10)
     }
 }
 
