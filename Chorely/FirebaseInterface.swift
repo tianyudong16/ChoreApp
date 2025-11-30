@@ -206,6 +206,56 @@ class FirebaseInterface {
     //We need to make a chore log repository for this
     //Also, for repeating chores, we will need to make it so that the chore is marked as "uncomplete" before it's due again.
     
+    //In progress, not yet completed
+    func makeLogDoc(groupKey:String, completion: @escaping ([String: Any]?) -> Void) async throws {
+        //This will create a new document called "Log" if it doesn't exist (or overwrite it if it does exist)
+        //We should only ever call this function ONCE PER GROUP. If you run setData a second time, the log will be OVERWRITTEN
+        
+        //Just to make sure that we don't overwrite Log, I will add a precondition to make sure Log already exists
+        db.collection("chores").document("group").collection(groupKey).document("Log").getDocument {snapshot, err in
+            if let err = err {
+                print("Error getting document: \(err)")
+                return
+            } else {
+                if snapshot?.exists == true {
+                    print("The Log already exists, ending the function here")
+                    return
+                } else {
+                    //The Log has not yet been created, and we are ok to move on.
+                }
+            }
+        }
+        
+        let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+        do {
+            let names = try await getGroupMembers(groupKey: groupKeyAsInt ?? 0)//To fix: have a proper fail case instead of just 0
+            print(names)
+        } catch {
+            print("Error getting document: \(error)")
+        }
+        
+        print("Attempting to add Log doc")
+        db.collection("chores").document("group").collection(groupKey).document("Log").setData(
+            [:]
+            ) { err in
+            if let err = err {
+                print("Error adding Log doc: \(err)")
+            } else {
+                print("Log doc added successfully!")
+            }
+        }
+        //Before I populate the Log, we need to decide: What kind of data is stored in the log? Do we need to know when the people completed the chores as a timestamp? Or just how many times each user completed each chore? What about having the log be an entirely separate collection with a list of docs, each doc representing a user completing the chore at a given time??? Depending on how much info we need to store, a single doc per group may not be enough
+    }
+    
+    //This may be needed as a helper function for makeLogDoc or other functions
+    func getGroupMembers(groupKey:Int) async throws -> [String] {
+        let snapshot = try await db.collection("users")
+            .whereField("groupKey", isEqualTo: groupKey)
+            .getDocuments()
+        
+        return snapshot.documents.compactMap { $0.get("name") as? String }
+    }
+    
     //We won't implement this until we decide how the chore proposal system should work
     func getProposedChores(){
         
@@ -301,3 +351,4 @@ func joinGroup(userId: String, groupKey: Int) async {
         print("Failed to join", error)
     }
 }
+//To do: Make it so that when joinGroup is run, we add the added user to the Log doc.
