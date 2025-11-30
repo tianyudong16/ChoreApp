@@ -191,7 +191,6 @@ class FirebaseInterface {
             let newDescription = oldDescription + "\n\(userName) did the chore."
 
             chore.updateData([
-                "Checklist": true,
                 "completed": true,
                 "Description": newDescription
             ]) { error in
