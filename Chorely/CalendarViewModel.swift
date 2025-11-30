@@ -9,8 +9,7 @@ import Foundation
 import FirebaseFirestore
 import SwiftUI
 
-// MARK: - Filter Enum
-/// Filter options for viewing chores
+// Filter options for viewing chores
 enum ChoreFilter: String, CaseIterable, Identifiable {
     case house = "House" // All chores in the group
     case mine = "Mine" // Only current user's chores
@@ -19,8 +18,7 @@ enum ChoreFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-// MARK: - CalendarChore Model
-/// Represents a chore with all info needed for calendar display
+// Represents a chore with all info needed for calendar display
 struct CalendarChore: Identifiable {
     let id: String
     let name: String
@@ -34,7 +32,7 @@ struct CalendarChore: Identifiable {
     let assignedUsers: [String] // User IDs assigned to this chore
     var completed: Bool
     
-    /// Priority color for display
+    // Priority color for display
     var priorityColor: Color {
         switch priorityLevel.lowercased() {
         case "high": return .red
@@ -44,8 +42,7 @@ struct CalendarChore: Identifiable {
     }
 }
 
-// MARK: - GroupMemberInfo Model
-/// Stores group member info including their chosen color
+// Stores group member info including their chosen color
 struct GroupMemberInfo: Identifiable {
     let id: String // User's Firebase UID
     let name: String
@@ -53,13 +50,10 @@ struct GroupMemberInfo: Identifiable {
     let colorString: String // Original color name from Firebase
 }
 
-// MARK: - CalendarViewModel
-/// ViewModel for CalendarView and DailyTasksView
-/// Handles fetching chores and group members using FirebaseInterface
+// ViewModel for CalendarView and DailyTasksView
+// Handles fetching chores and group members using FirebaseInterface
 @MainActor
 class CalendarViewModel: ObservableObject {
-    
-    // MARK: - Published Properties
     @Published var chores: [CalendarChore] = [] // All chores for the group
     @Published var groupMembers: [GroupMemberInfo] = [] // All members with colors
     @Published var currentUserID: String = "" // Current logged-in user
@@ -67,15 +61,13 @@ class CalendarViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage = ""
     
-    // MARK: - Private Properties
+    
     private var groupKey: String?
     private var groupKeyInt: Int?
     private var choresListener: ListenerRegistration?
     private var membersListener: ListenerRegistration?
     
-    // MARK: - Computed Properties
-    
-    /// Returns chores filtered by the selected filter
+    // Returns chores filtered by the selected filter
     var filteredChores: [CalendarChore] {
         switch selectedFilter {
         case .house:
@@ -87,7 +79,7 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    /// Returns chores for a specific date
+    // Returns chores for a specific date
     func choresForDate(_ date: Date) -> [CalendarChore] {
         let calendar = Calendar.current
         return filteredChores.filter { chore in
@@ -95,7 +87,7 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    /// Returns all assignee colors for a specific date (for calendar dots)
+    // Returns all assignee colors for a specific date (for calendar dots)
     func assigneeColorsForDate(_ date: Date) -> [Color] {
         let dayChores = choresForDate(date)
         var colors: [Color] = []
@@ -118,29 +110,28 @@ class CalendarViewModel: ObservableObject {
         return colors
     }
     
-    /// Checks if a date has any chores
+    // Checks if a date has any chores
     func dateHasChores(_ date: Date) -> Bool {
         return !choresForDate(date).isEmpty
     }
     
-    /// Get member info by ID
+    // Get member info by ID
     func getMember(byID id: String) -> GroupMemberInfo? {
         return groupMembers.first(where: { $0.id == id })
     }
     
-    /// Get color for a user ID
+    // Get color for a user ID
     func colorForUser(_ userID: String) -> Color {
         return getMember(byID: userID)?.color ?? .gray
     }
     
-    /// Get name for a user ID
+    // Get name for a user ID
     func nameForUser(_ userID: String) -> String {
         return getMember(byID: userID)?.name ?? "Unknown"
     }
     
-    // MARK: - Public Methods
-    
-    /// Initialize data loading with user ID
+    // Methods
+    // Initialize data loading with user ID
     func loadData(userID: String) {
         self.currentUserID = userID
         isLoading = true
@@ -185,7 +176,7 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    /// Toggle chore completion using direct Firestore
+    // Toggle chore completion using direct Firestore
     func toggleChoreCompletion(_ chore: CalendarChore) {
         guard let groupKey = groupKey else { return }
         
@@ -202,7 +193,7 @@ class CalendarViewModel: ObservableObject {
             }
     }
     
-    /// Delete a chore using direct Firestore
+    // Delete a chore using direct Firestore
     func deleteChore(_ chore: CalendarChore) {
         guard let groupKey = groupKey else { return }
         
@@ -219,9 +210,9 @@ class CalendarViewModel: ObservableObject {
             }
     }
     
-    // MARK: - Private Methods
+    // Private Methods
     
-    /// Set up real-time listener for chores using direct Firestore
+    // Set up real-time listener for chores using direct Firestore
     private func setupChoresListener(groupKey: String) {
         // Remove any existing listener
         choresListener?.remove()
@@ -292,7 +283,7 @@ class CalendarViewModel: ObservableObject {
             }
     }
     
-    /// Set up real-time listener for group members using direct Firestore
+    // Set up real-time listener for group members using direct Firestore
     private func setupMembersListener(groupKey: Int) {
         // Remove any existing listener
         membersListener?.remove()
@@ -336,7 +327,7 @@ class CalendarViewModel: ObservableObject {
             }
     }
     
-    /// Convert color string to SwiftUI Color
+    // Convert color string to SwiftUI Color
     private func colorFromString(_ colorName: String) -> Color {
         switch colorName.lowercased() {
         case "red":
@@ -366,7 +357,7 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    /// Priority ranking for sorting
+    // Priority ranking for sorting
     private func priorityRank(_ priority: String) -> Int {
         switch priority.lowercased() {
         case "high": return 0
@@ -375,7 +366,6 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Cleanup
     // Used to prevent memory leaks from firebase
     // basically prevents firebase from listening to real time updates
     deinit {

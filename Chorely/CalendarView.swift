@@ -8,45 +8,41 @@
 
 import SwiftUI
 
-// MARK: - CalendarView
 /// Main calendar view showing monthly calendar with chore indicators
 /// Tapping a date navigates to DailyTasksView for that date
 struct CalendarView: View {
     
-    // MARK: - Properties
+    // MARK: Properties
+    let userID: String //User ID passed from MainTabView
     
-    /// User ID passed from MainTabView
-    let userID: String
-    
-    /// Shared ViewModel for calendar data
+    //Shared ViewModel for calendar data
     @StateObject private var viewModel = CalendarViewModel()
     
-    /// Currently displayed month
+    // Currently displayed month
     @State private var date = Date.now
     
-    /// Currently selected date (tapped by user)
+    // Currently selected date (tapped by user)
     @State private var selectedDate: Date? = nil
     
-    /// Days to display in the calendar grid
+    // Days to display in the calendar grid
     @State private var days: [Date] = []
     
-    /// Whether to show the daily tasks sheet
+    // Whether to show the daily tasks sheet
     @State private var showDailyTasks = false
     
-    /// Calendar layout constants
+    // Calendar layout constants
     let daysOfWeek = Date.capitalizedFirstLetterOfWeekdays
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     
-    // MARK: - Body
-    
+    // MARK: Body
     var body: some View {
         VStack(spacing: 0) {
             
-            // MARK: Month Navigation Header
+            // Month Navigation Header
             CalendarHeaderView(date: $date)
             
-            // MARK: Filter Chips
-            /// Filter by House (all) / Mine / Roommates
+            // filter options
+            // filter by House (all) / Mine / Roommates
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(ChoreFilter.allCases) { filter in
@@ -81,7 +77,7 @@ struct CalendarView: View {
             Divider()
                 .padding(.bottom, 8)
             
-            // MARK: Days of Week Header
+            // Days of Week Header
             HStack {
                 ForEach(daysOfWeek.indices, id: \.self) { index in
                     Text(daysOfWeek[index])
@@ -93,7 +89,7 @@ struct CalendarView: View {
             .padding(.horizontal)
             .padding(.bottom, 8)
             
-            // MARK: Calendar Grid
+            // Calendar view
             if viewModel.isLoading {
                 Spacer()
                 ProgressView("Loading calendar...")
@@ -130,7 +126,7 @@ struct CalendarView: View {
             
             Spacer()
             
-            // MARK: Today's Chores Button
+            // Today's Chores Button
             Button {
                 selectedDate = Date.now.startOfDay
                 showDailyTasks = true
@@ -175,9 +171,9 @@ struct CalendarView: View {
     }
 }
 
-// MARK: - CalendarDayCell
-/// Individual day cell in the calendar grid
-/// Shows the day number and colored indicators for chores
+// CalendarDayCell
+// Individual day cell in the calendar grid
+// Shows the day number and colored indicators for chores
 struct CalendarDayCell: View {
     let day: Date
     let isToday: Bool
@@ -231,8 +227,8 @@ struct CalendarDayCell: View {
     }
 }
 
-// MARK: - CalendarHeaderView
-/// Header with month/year display and navigation arrows
+// CalendarHeaderView
+// Header with month/year display and navigation arrows
 struct CalendarHeaderView: View {
     @Binding var date: Date
     private let calendar = Calendar.current
@@ -265,14 +261,14 @@ struct CalendarHeaderView: View {
         .padding(.bottom, 5)
     }
     
-    /// Change displayed month by given value (-1 for previous, +1 for next)
+    // Change displayed month by given value (-1 for previous, +1 for next)
     private func changeMonth(by value: Int) {
         if let newDate = calendar.date(byAdding: .month, value: value, to: date) {
             date = newDate
         }
     }
     
-    /// Formatter for month and year display
+    // Formatter for month and year display
     private var monthYearFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
@@ -280,7 +276,6 @@ struct CalendarHeaderView: View {
     }
 }
 
-// MARK: - Preview
 #Preview {
     NavigationStack {
         CalendarView(userID: "test")
