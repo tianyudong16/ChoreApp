@@ -24,23 +24,21 @@ class ChoresViewModel: ObservableObject {
     
     init() {}
     
-    // sorts the chores based on ID
-    // earlier date gets priority, and then completed chores is at the bottom of the list
     var sortedChoreIDs: [String] {
         chores.keys.sorted { id1, id2 in
             guard let chore1 = chores[id1], let chore2 = chores[id2] else { return false }
             
             if chore1.completed != chore2.completed {
-                return !chore1.completed // returns uncompleted chore
+                return !chore1.completed
             }
             if chore1.date != chore2.date {
-                return chore1.date < chore2.date // checks date
+                return chore1.date < chore2.date
             }
             return priorityRank(chore1.priorityLevel) < priorityRank(chore2.priorityLevel)
         }
     }
     
-    func loadChores(userID: String) {
+    func fetchUserAndLoadChores(userID: String) {
         isLoading = true
         errorMessage = ""
         
@@ -74,32 +72,37 @@ class ChoresViewModel: ObservableObject {
               let chore = chores[choreID] else { return }
         
         if chore.completed {
-            editChore( // calls editChore function from FirebaseInterface
-                documentId: choreID,
+            // Create a Chore object for editing
+            let updatedChore = Chore(
                 checklist: chore.checklist,
                 date: chore.date,
                 day: chore.day,
                 description: chore.description,
-                monthlyrepeatbydate: chore.monthlyRepeatByDate,
-                monthlyrepeatbyweek: chore.monthlyRepeatByWeek,
-                Name: chore.name,
-                PriorityLevel: chore.priorityLevel,
-                RepetitionTime: chore.repetitionTime,
-                TimeLength: chore.timeLength,
+                monthlyRepeatByDate: chore.monthlyRepeatByDate,
+                monthlyRepeatByWeek: chore.monthlyRepeatByWeek,
+                name: chore.name,
+                priorityLevel: chore.priorityLevel,
+                repetitionTime: chore.repetitionTime,
+                timeLength: chore.timeLength,
                 assignedUsers: chore.assignedUsers,
                 completed: false,
-                groupKey: groupKeyInt
-            ) { success in
+                voters: chore.voters,
+                proposal: chore.proposal
+            )
+            
+            editChore(documentId: choreID, chore: updatedChore, groupKey: groupKey) { success in
                 if success {
                     print("Chore unchecked successfully")
                 }
             }
         } else {
-            FirebaseInterface.shared.markComplete(
-                userName: currentUserName,
-                choreId: choreID,
-                groupKey: groupKey
-            )
+            Task {
+                await FirebaseInterface.shared.markComplete(
+                    userName: currentUserName,
+                    choreId: choreID,
+                    groupKey: groupKey
+                )
+            }
         }
     }
     
@@ -152,7 +155,9 @@ class ChoresViewModel: ObservableObject {
                 repetitionTime: data["RepetitionTime"] as? String ?? "None",
                 timeLength: data["TimeLength"] as? Int ?? 0,
                 assignedUsers: data["assignedUsers"] as? [String] ?? [],
-                completed: data["completed"] as? Bool ?? false
+                completed: data["completed"] as? Bool ?? false,
+                voters: data["voters"] as? [String] ?? [],
+                proposal: data["proposal"] as? Bool ?? false
             )
             result[doc.documentID] = chore
         }

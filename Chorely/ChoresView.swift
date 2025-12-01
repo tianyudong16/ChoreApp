@@ -7,30 +7,23 @@
 
 import SwiftUI
 
-/// Main view for displaying all chores in the user's group
-/// Navigated to from the HomeView when "View Chores" is tapped
 struct ChoresView: View {
     
-    // ViewModel that handles data fetching and business logic
-    @StateObject var viewModel = ChoresViewModel()
-    
-    // The current user's Firebase UID - passed from HomeView
+    @StateObject private var viewModel: ChoresViewModel
     private let userID: String
     
-    // initializer for userID
     init(userID: String) {
         self.userID = userID
+        _viewModel = StateObject(wrappedValue: ChoresViewModel())
     }
     
     var body: some View {
         VStack {
-            // loading state
             if viewModel.isLoading {
                 Spacer()
                 ProgressView("Loading chores...")
                 Spacer()
                 
-            // error state
             } else if !viewModel.errorMessage.isEmpty {
                 Spacer()
                 VStack(spacing: 12) {
@@ -44,7 +37,6 @@ struct ChoresView: View {
                 .padding()
                 Spacer()
                 
-            // handles an empty state
             } else if viewModel.chores.isEmpty {
                 Spacer()
                 VStack(spacing: 12) {
@@ -60,7 +52,6 @@ struct ChoresView: View {
                 }
                 Spacer()
                 
-            // chores list
             } else {
                 List {
                     ForEach(viewModel.sortedChoreIDs, id: \.self) { choreID in
@@ -93,7 +84,8 @@ struct ChoresView: View {
             NewChoreView(newChorePresented: $viewModel.showingNewChoreView)
         }
         .onAppear {
-            viewModel.loadChores(userID: userID)
+            // Call the existing function to load data
+            viewModel.fetchUserAndLoadChores(userID: userID)
         }
     }
 }

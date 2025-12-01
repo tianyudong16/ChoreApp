@@ -39,7 +39,6 @@ class CalendarViewModel: ObservableObject {
     
     
     private var groupKey: String?
-    private var groupKeyInt: Int?
     private var choresListener: ListenerRegistration?
     private var membersListener: ListenerRegistration?
     
@@ -130,7 +129,6 @@ class CalendarViewModel: ObservableObject {
                 }
                 
                 self.groupKey = keyString
-                self.groupKeyInt = keys.int
                 
                 setupChoresListener(groupKey: keyString)
                 if let intKey = keys.int {
@@ -146,36 +144,42 @@ class CalendarViewModel: ObservableObject {
     
     func toggleChoreCompletion(choreID: String) {
         guard let groupKey = groupKey,
-              let groupKeyInt = groupKeyInt,
               let chore = chores[choreID] else { return }
-        // uses editChore function from FirebaseInterface
-        if chore.completed {
-            editChore(
-                documentId: choreID,
-                checklist: chore.checklist,
-                date: chore.date,
-                day: chore.day,
-                description: chore.description,
-                monthlyrepeatbydate: chore.monthlyRepeatByDate,
-                monthlyrepeatbyweek: chore.monthlyRepeatByWeek,
-                Name: chore.name,
-                PriorityLevel: chore.priorityLevel,
-                RepetitionTime: chore.repetitionTime,
-                TimeLength: chore.timeLength,
-                assignedUsers: chore.assignedUsers,
-                completed: false,
-                groupKey: groupKeyInt
-            ) { success in
-                if success {
-                    print("Chore unchecked successfully")
+        
+        Task {
+            if chore.completed {
+                // Create a new Chore object with the updated completion status
+                let updatedChore = Chore(
+                    checklist: chore.checklist,
+                    date: chore.date,
+                    day: chore.day,
+                    description: chore.description,
+                    monthlyRepeatByDate: chore.monthlyRepeatByDate,
+                    monthlyRepeatByWeek: chore.monthlyRepeatByWeek,
+                    name: chore.name,
+                    priorityLevel: chore.priorityLevel,
+                    repetitionTime: chore.repetitionTime,
+                    timeLength: chore.timeLength,
+                    assignedUsers: chore.assignedUsers,
+                    completed: false,
+                    votes: chore.votes,
+                    voters: chore.voters,
+                    proposal: chore.proposal
+                )
+                
+                // Use the existing editChore function
+                editChore(documentId: choreID, chore: updatedChore, groupKey: groupKey) { success in
+                    if success {
+                        print("Chore unchecked successfully")
+                    }
                 }
+            } else {
+                await FirebaseInterface.shared.markComplete(
+                    userName: currentUserName,
+                    choreId: choreID,
+                    groupKey: groupKey
+                )
             }
-        } else {
-            FirebaseInterface.shared.markComplete( // calls markComplete function from FirebaseInterface
-                userName: currentUserName,
-                choreId: choreID,
-                groupKey: groupKey
-            )
         }
     }
     
@@ -251,7 +255,10 @@ class CalendarViewModel: ObservableObject {
                 repetitionTime: data["RepetitionTime"] as? String ?? "None",
                 timeLength: data["TimeLength"] as? Int ?? 0,
                 assignedUsers: data["assignedUsers"] as? [String] ?? [],
-                completed: data["completed"] as? Bool ?? false
+                completed: data["completed"] as? Bool ?? false,
+                votes: data["votes"] as? Int ?? 0,
+                voters: data["voters"] as? [String] ?? [],
+                proposal: data["proposal"] as? Bool ?? false
             )
             result[doc.documentID] = chore
         }

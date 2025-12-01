@@ -85,7 +85,10 @@ class NewChoreViewModel: ObservableObject {
             repetitionTime: repetitionTime,
             timeLength: 30,
             assignedUsers: [],
-            completed: false
+            completed: false,
+            votes: 0,
+            voters: [], // provided empty array for voters
+            proposal: false
         )
         
         addChore(chore: newChore, groupKey: groupKey)
