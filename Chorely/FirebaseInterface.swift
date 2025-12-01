@@ -35,6 +35,10 @@ struct Chore {
     var timeLength: Int
     var assignedUsers: [String]
     var completed: Bool = false
+    
+    var votes: Int = 0
+    var voters: [String]
+    var proposal:  Bool  = false
 }
 
 
@@ -295,6 +299,9 @@ func addChore(chore: Chore, groupKey: String){
         "TimeLength": chore.timeLength,
         "assignedUsers": chore.assignedUsers,
         "completed": chore.completed,
+        "votes": chore.votes,
+        "voters": chore.voters,
+        "proposal": chore.proposal
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
@@ -304,21 +311,23 @@ func addChore(chore: Chore, groupKey: String){
     }
 }
 
-func editChore(documentId: String, checklist: Bool, date: String, day: String, description: String, monthlyrepeatbydate: Bool, monthlyrepeatbyweek: String, Name: String, PriorityLevel: String, RepetitionTime: String, TimeLength: Int, assignedUsers:[String], completed: Bool, groupKey: Int, completion: @escaping (Bool) -> Void){
-    db.collection("chores").document(documentId).updateData([
-        "Checklist": checklist,
-        "Date": date,
-        "Day": day,
-        "Description": description,
-        "MonthlyRepeatByDate": monthlyrepeatbydate,
-        "MonthlyRepeatByWeek": monthlyrepeatbyweek,
-        "Name": Name,
-        "PriorityLevel": PriorityLevel,
-        "RepetitionTime": RepetitionTime,
-        "TimeLength": TimeLength,
-        "assignedUsers":assignedUsers,
-        "completed": completed,
-        "groupKey": groupKey//We should use the groupKey of the user who's currently logged in instead of it being an argument
+func editChore(documentId: String, chore: Chore, groupKey: String, completion: @escaping (Bool) -> Void){
+    db.collection("chores").document("group").collection(groupKey).document(documentId).updateData([
+        "Checklist": chore.checklist,
+        "Date": chore.date,//exact date
+        "Day": chore.day,//day of week
+        "Description": chore.description,
+        "MonthlyRepeatByDate": chore.monthlyRepeatByDate,
+        "MonthlyRepeatByWeek": chore.monthlyRepeatByWeek,
+        "Name": chore.name,
+        "PriorityLevel": chore.priorityLevel,
+        "RepetitionTime": chore.repetitionTime,
+        "TimeLength": chore.timeLength,
+        "assignedUsers": chore.assignedUsers,
+        "completed": chore.completed,
+        "votes": chore.votes,
+        "voters": chore.voters,
+        "proposal": chore.proposal
     ])  { err in
         if let  err = err {
             print("Error editimg chore: \(err)")
@@ -350,4 +359,54 @@ func joinGroup(userId: String, groupKey: Int) async {
         print("Failed to join", error)
     }
 }
+
+func voteProposal(groupKey: String, choreId: String, userId: String, approved: Bool, completion: @escaping (Bool) -> Void) {
+    
+    let chore = db.collection("groups").document(groupKey).collection("chores").document(choreId)
+    
+    db.runTransaction({ (transaction, errorPointer) -> Any? in
+        let snapshot: DocumentSnapshot
+        do {
+            snapshot = try transaction.getDocument(chore)
+        } catch let error as NSError {
+            errorPointer?.pointee = error
+            return nil
+        }
+
+        var votes = snapshot.get("votes") as? Int ?? 0
+        var voters = snapshot.get("voters") as? [String] ?? []
+        var proposal = snapshot.get("proposal") as? Bool ?? false
+        
+        if voters.contains(userId) {
+            return nil
+        }
+
+        
+        votes += approved ? 1 : 0
+        voters.append(userId)
+        if votes > 4 {
+            proposal = false
+        }
+        
+        transaction.updateData([
+            "votes": votes,
+            "voters": voters,
+            "proposal": proposal
+        ], forDocument: chore)
+
+        return
+
+    }) { (result, err) in
+
+        if let err = err {
+            print("Vote failed: \(err)")
+            completion(false)
+            return
+        }
+        print("Vote succeeded")
+        completion(true)
+    }
+}
+
+
 //To do: Make it so that when joinGroup is run, we add the added user to the Log doc.
