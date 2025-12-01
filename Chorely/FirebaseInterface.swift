@@ -308,10 +308,9 @@ class FirebaseInterface {
         
     }
     
-    // New consolidated functions for chore and user operations
+
     
-    // HELPER FUNCTIONS ADDED FOR VIEWMODEL SUPPORT
-    
+    // HELPER FUNCTIONS ADDED FOR VIEWMODEL SUPPORT (by Tian)
     
     // Extracts groupKey from user data, handling both Int and String types
     // Returns tuple with both string and int versions for flexibility
@@ -403,11 +402,11 @@ class FirebaseInterface {
     
     // Fetches all users in a group (non-listener version)
     func fetchGroupMembers(groupKey: Int, completion: @escaping ([QueryDocumentSnapshot]?, Error?) -> Void) {
-        db
-            .collection("Users")
+        db.collection("Users")
             .whereField("groupKey", isEqualTo: groupKey)
-            .getDocuments { querySnapshot, error in
-                completion(querySnapshot?.documents, error)
+            .getDocuments {
+                querySnapshot, error in
+                    completion(querySnapshot?.documents, error)
             }
     }
     
@@ -419,15 +418,14 @@ class FirebaseInterface {
     //   value: New value for the field
     //   completion: Callback with error (nil on success)
     func updateUserField(userID: String, field: String, value: Any, completion: ((Error?) -> Void)? = nil) {
-        db
-            .collection("Users")
-            .document(userID)
-            .updateData([field: value]) { error in
-                if let error = error {
-                    print("Error updating \(field): \(error)")
-                }
-                completion?(error)
+        db.collection("Users")
+          .document(userID)
+          .updateData([field: value]) { error in
+            if let error = error {
+                print("Error updating \(field): \(error)")
             }
+            completion?(error)
+        }
     }
     
     // Saves a new chore to Firebase and returns the document reference
@@ -459,25 +457,23 @@ class FirebaseInterface {
     //   groupKey: The 6-digit group code to check
     // Returns: (exists: Bool, userData: first user's data if found)
     func checkGroupExists(groupKey: Int, completion: @escaping (Bool, [String: Any]?) -> Void) {
-        db
-            .collection("Users")
-            .whereField("groupKey", isEqualTo: groupKey)
-            .limit(to: 1)
-            .getDocuments { querySnapshot, error in
-                if let error = error {
-                    print("Error checking group: \(error)")
-                    completion(false, nil)
-                    return
-                }
-                
-                if let documents = querySnapshot?.documents, !documents.isEmpty {
-                    completion(true, documents[0].data())
-                } else {
-                    completion(false, nil)
-                }
+        db.collection("Users")
+          .whereField("groupKey",isEqualTo: groupKey)
+          .limit(to: 1)
+          .getDocuments { querySnapshot, error in
+            if let error = error {
+                print("Error checking group: \(error)")
+                completion(false, nil)
+                return
             }
+            
+            if let documents = querySnapshot?.documents, !documents.isEmpty {
+                completion(true, documents[0].data())
+            } else {
+                completion(false, nil)
+            }
+        }
     }
-    
 }
 
 //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
