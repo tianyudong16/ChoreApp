@@ -114,11 +114,15 @@ class RegisterViewModel: ObservableObject {
             do {
                 print("DEBUG: Searching for groupKey: \(groupKeyInt) (type: Int)")
                 
-                // Check if group exists using pre-existing function
-                let result = try await FirebaseInterface.shared.checkGroupExistsAsync(groupKey: groupKeyInt)
+                // Check if group exists by searching for any user with this groupKey
+                let snapshot = try await FirebaseInterface.shared.firestore
+                    .collection("Users")
+                    .whereField("groupKey", isEqualTo: groupKeyInt)
+                    .limit(to: 1)
+                    .getDocuments()
                 
                 // Verify group was found
-                guard result.exists, let existingUserData = result.userData else {
+                guard !snapshot.documents.isEmpty else {
                     await MainActor.run {
                         self.errorMessage = "Invalid group code. No group found with code: \(groupCode)"
                     }
@@ -126,6 +130,7 @@ class RegisterViewModel: ObservableObject {
                     return
                 }
                 
+                let existingUserData = snapshot.documents[0].data()
                 print("DEBUG: Found user data: \(existingUserData)")
                 
                 // Get the group name from existing user

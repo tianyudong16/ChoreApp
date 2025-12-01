@@ -478,19 +478,6 @@ class FirebaseInterface {
             }
     }
     
-    // Async version of checkGroupExists
-    func checkGroupExistsAsync(groupKey: Int) async throws -> (exists: Bool, userData: [String: Any]?) {
-        let snapshot = try await db
-            .collection("Users")
-            .whereField("groupKey", isEqualTo: groupKey)
-            .limit(to: 1)
-            .getDocuments()
-        
-        if let document = snapshot.documents.first {
-            return (true, document.data())
-        }
-        return (false, nil)
-    }
 }
 
 //Returns all of the chores where user's groupKey = the chore's groupKey. This function should have optional parameters that let you filter the list of chores.
