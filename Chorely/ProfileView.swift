@@ -10,9 +10,8 @@ import UserNotifications
 import PhotosUI
 import FirebaseFirestore
 
-// Defines the available colors users can choose for their profile
-// These colors are used to identify users in the group
-// I only picked these few colors for simplicity. Realistically, there wouldn't be more than these number of people but can be adjusted in the future
+// Available colors for user profiles
+// Each user can choose a color to identify themselves in the group
 enum ProfileColor: String, CaseIterable, Identifiable {
     case red = "Red"
     case blue = "Blue"
@@ -25,10 +24,10 @@ enum ProfileColor: String, CaseIterable, Identifiable {
     case mint = "Mint"
     case teal = "Teal"
     
-    // Required for Identifiable protocol - allows ForEach to iterate over colors
+    // Required for Identifiable protocol
     var id: String { rawValue }
     
-    // Converts the enum case to a SwiftUI Color for display
+    // Converts enum to SwiftUI Color
     var color: Color {
         switch self {
         case .red:
@@ -54,10 +53,12 @@ enum ProfileColor: String, CaseIterable, Identifiable {
         }
     }
     
+    // Creates ProfileColor from a string (for loading from Firebase)
     static func fromString(_ string: String) -> ProfileColor {
         return ProfileColor(rawValue: string) ?? .green
     }
     
+    // Finds ProfileColor that matches a SwiftUI Color
     static func fromColor(_ color: Color) -> ProfileColor {
         for profileColor in ProfileColor.allCases {
             if profileColor.color == color {
@@ -68,25 +69,30 @@ enum ProfileColor: String, CaseIterable, Identifiable {
     }
 }
 
+// User profile screen showing personal info, group info, and settings
 struct ProfileView: View {
-    let userID: String
-    let onLogout: () -> Void
+    let userID: String       // Firebase user ID
+    let onLogout: () -> Void // Callback to handle logout
     
+    // User data state
     @State private var name: String = "User's Name"
     @State private var color: Color = .blue
     @State private var groupCodeDisplay: String = ""
     @State private var groupName: String = ""
     @State private var isLoading = true
     
+    // Notification settings (persisted across app launches)
     @AppStorage("notificationsEnabled") private var notificationsOn = true
     @State private var showPermsAlert = false
     @State private var denied = false
     
+    // Alert states
     @State private var showLogOutAlert = false
     @State private var showJoinAlert = false
     @State private var showLeaveAlert = false
     @State private var showImagePicker = false
     
+    // Profile photo state
     @State private var profileImage: Image? = Image(systemName: "person.circle")
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var groupCode: String = ""
@@ -113,18 +119,21 @@ struct ProfileView: View {
                 refreshAuthStatus()
                 fetchUserData()
             }
+            // Alert for notification permissions
             .alert("Notifications are disabled in Settings", isPresented: $showPermsAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Open Settings") { openSettings() }
             } message: {
                 Text("To enable notifications, allow them in iOS Settings.")
             }
+            // Handle photo selection
             .onChange(of: selectedPhotoItem, initial: false) { oldItem, newItem in
                 handlePhotoSelection(newItem)
             }
         }
     }
     
+    // Loading spinner while fetching user data
     private var loadingSection: some View {
         VStack {
             Spacer()
@@ -134,6 +143,7 @@ struct ProfileView: View {
         }
     }
     
+    // Profile picture, name, and color picker
     private var profileHeaderSection: some View {
         VStack(spacing: 15) {
             profilePicturePicker
@@ -143,11 +153,13 @@ struct ProfileView: View {
         .padding(.top, 20)
     }
     
+    // Tappable profile picture with edit indicator
     private var profilePicturePicker: some View {
         PhotosPicker(selection: $selectedPhotoItem,
                      matching: .images,
                      photoLibrary: .shared()) {
             ZStack(alignment: .bottomTrailing) {
+                // Colored circle with user's initial
                 Circle()
                     .fill(color)
                     .frame(width: 100, height: 100)
@@ -158,6 +170,7 @@ struct ProfileView: View {
                     )
                     .shadow(color: color.opacity(0.4), radius: 4, y: 2)
 
+                // Edit pencil icon
                 Image(systemName: "pencil.circle.fill")
                     .font(.system(size: 26))
                     .foregroundColor(.blue)
@@ -166,6 +179,7 @@ struct ProfileView: View {
         }
     }
     
+    // Editable name field - saves on submit
     private var nameTextField: some View {
         TextField("User's Name", text: $name)
             .font(.title2)
@@ -177,12 +191,14 @@ struct ProfileView: View {
             }
     }
     
+    // Grid of color options (2 rows of 5)
     private var colorPickerGrid: some View {
         VStack(spacing: 8) {
             Text("Your Color")
                 .font(.caption)
                 .foregroundColor(.secondary)
             
+            // First row: Red, Blue, Green, Yellow, Orange
             HStack(spacing: 12) {
                 ForEach(ProfileColor.allCases.prefix(5)) { profileColor in
                     ColorCircleButton(
@@ -193,6 +209,7 @@ struct ProfileView: View {
                 }
             }
             
+            // Second row: Purple, Pink, Cyan, Mint, Teal
             HStack(spacing: 12) {
                 ForEach(ProfileColor.allCases.suffix(5)) { profileColor in
                     ColorCircleButton(
@@ -206,6 +223,7 @@ struct ProfileView: View {
         .padding(.top, 8)
     }
     
+    // Shows group name and code with copy button
     private var groupInfoSection: some View {
         Group {
             if !groupCodeDisplay.isEmpty {
@@ -219,6 +237,7 @@ struct ProfileView: View {
                     }
                     Spacer()
                     
+                    // Copy to clipboard button
                     Button {
                         UIPasteboard.general.string = groupCodeDisplay
                     } label: {
@@ -234,29 +253,33 @@ struct ProfileView: View {
         }
     }
     
+    // Join Group, About Group, and Leave Group buttons
     private var groupActionsSection: some View {
         VStack(spacing: 15) {
+            // Join Group button with alert
             Button { showJoinAlert = true } label: {
                 ProfileRow(icon: "person.3", label: "Join Group")
             }
             .alert("Join Group", isPresented: $showJoinAlert) {
                 TextField("Group code", text: $groupCode)
                 Button("Cancel", role: .cancel) {}
-                Button("Join") { }
+                Button("Join") { /* TODO: Implement join functionality */ }
             } message: {
                 Text("Enter group code to join.")
             }
             
+            // About Group navigation link
             NavigationLink(destination: AboutGroupView()) {
                 ProfileRow(icon: "info.circle", label: "About Group")
             }
             
+            // Leave Group button with confirmation
             Button { showLeaveAlert = true } label: {
                 ProfileRow(icon: "rectangle.portrait.and.arrow.right", label: "Leave Group", color: .red)
             }
             .alert("Leave Group?", isPresented: $showLeaveAlert) {
                 Button("Cancel", role: .cancel) {}
-                Button("Leave", role: .destructive) { }
+                Button("Leave", role: .destructive) { /* TODO: Implement leave functionality */ }
             } message: {
                 Text("Are you sure you want to leave this group?")
             }
@@ -264,6 +287,7 @@ struct ProfileView: View {
         .padding(.horizontal)
     }
     
+    // Notifications toggle
     private var notificationsSection: some View {
         HStack {
             Label("Notifications", systemImage: notificationsOn ? "bell.fill" : "bell.slash.fill")
@@ -278,6 +302,7 @@ struct ProfileView: View {
         .padding(.vertical, 8)
     }
     
+    // Logout button with confirmation
     private var logoutSection: some View {
         Button { showLogOutAlert = true } label: {
             Text("Log Out")
@@ -291,6 +316,7 @@ struct ProfileView: View {
         .alert("Log Out?", isPresented: $showLogOutAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Log Out", role: .destructive) {
+                // Sign out using pre-existing function
                 FirebaseInterface.shared.signOut()
                 onLogout()
             }
@@ -299,6 +325,7 @@ struct ProfileView: View {
         }
     }
     
+    // Handles notification toggle - requests permission if enabling
     private func handleToggleChange(_ on: Bool) {
         guard on else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
@@ -311,6 +338,7 @@ struct ProfileView: View {
         }
     }
 
+    // Checks current notification authorization status
     private func refreshAuthStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { s in
             DispatchQueue.main.async {
@@ -320,11 +348,13 @@ struct ProfileView: View {
         }
     }
 
+    // Opens iOS Settings app for notification permissions
     private func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }
     
+    // Updates color state and saves to Firebase
     private func selectColor(_ profileColor: ProfileColor) {
         withAnimation {
             color = profileColor.color
@@ -332,6 +362,8 @@ struct ProfileView: View {
         }
     }
     
+    // Handles photo picker selection
+    // Not fully working yet but this is low priority
     private func handlePhotoSelection(_ newItem: PhotosPickerItem?) {
         guard let newItem else { return }
         
@@ -343,22 +375,27 @@ struct ProfileView: View {
         }
     }
     
+    // Fetches user profile data from Firebase
     private func fetchUserData() {
         isLoading = true
         
         Task {
             do {
+                // Use pre-existing getUserData function
                 let userData = try await FirebaseInterface.shared.getUserData(uid: userID)
                 
                 await MainActor.run {
                     isLoading = false
                     
+                    // Extract user fields from Firebase data
                     name = userData["Name"] as? String ?? "User"
                     groupName = userData["groupName"] as? String ?? "Home"
                     
+                    // Extract group key using pre-existing helper
                     let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
                     groupCodeDisplay = keys.string ?? ""
                     
+                    // Convert color string to Color
                     let colorString = userData["color"] as? String ?? "Green"
                     color = ProfileColor.fromString(colorString).color
                 }
@@ -371,8 +408,10 @@ struct ProfileView: View {
         }
     }
     
+    // Saves user's color choice to Firebase
     private func saveColorToFirebase(_ newColor: Color) {
         let profileColor = ProfileColor.fromColor(newColor)
+        // Use pre-existing updateUserField function
         FirebaseInterface.shared.updateUserField(
             userID: userID,
             field: "color",
@@ -384,7 +423,9 @@ struct ProfileView: View {
         }
     }
     
+    // Saves user's name to Firebase
     private func saveNameToFirebase(_ newName: String) {
+        // Use pre-existing updateUserField function
         FirebaseInterface.shared.updateUserField(
             userID: userID,
             field: "Name",
@@ -397,6 +438,7 @@ struct ProfileView: View {
     }
 }
 
+// Tappable color circle for the color picker
 struct ColorCircleButton: View {
     let profileColor: ProfileColor
     let isSelected: Bool
@@ -407,6 +449,7 @@ struct ColorCircleButton: View {
             .fill(profileColor.color)
             .frame(width: 36, height: 36)
             .overlay(
+                // Show border when selected
                 Circle()
                     .strokeBorder(Color.primary, lineWidth: isSelected ? 3 : 0)
             )
@@ -415,10 +458,11 @@ struct ColorCircleButton: View {
     }
 }
 
+// Reusable row for profile menu items
 struct ProfileRow: View {
-    let icon: String
-    let label: String
-    var color: Color = .primary
+    let icon: String // SF Symbol name
+    let label: String // Text label
+    var color: Color = .primary // Icon and text color
     
     var body: some View {
         HStack {
@@ -437,6 +481,7 @@ struct ProfileRow: View {
     }
 }
 
+// Shows ON/OFF status badge for notifications
 struct NotificationToggle: View {
     let isOn: Bool
     
@@ -452,6 +497,7 @@ struct NotificationToggle: View {
     }
 }
 
+// Profile editing view (for future use)
 struct EditProfileView: View {
     @Binding var name: String
     @Binding var color: Color
@@ -465,6 +511,7 @@ struct EditProfileView: View {
     }
 }
 
+// Shows group information (placeholder for future implementation)
 struct AboutGroupView: View {
     var body: some View {
         Text("Group Info and Members")

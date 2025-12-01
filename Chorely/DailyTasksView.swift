@@ -4,20 +4,26 @@
 //
 //  Created by Brooke Tanner on 11/11/25.
 //
-//  Updated to integrate with Firebase and CalendarViewModel
 
 import SwiftUI
 
+// View that shows all chores for a specific date
+// Can be opened from CalendarView (as sheet) or HomeView (via navigation)
 struct DailyTasksView: View {
     
-    let userID: String
-    let selectedDate: Date
-    @ObservedObject var viewModel: CalendarViewModel
+    // Required parameters
+    let userID: String                        // Current user's ID
+    let selectedDate: Date                    // Date to show chores for
+    @ObservedObject var viewModel: CalendarViewModel // Shared ViewModel from parent
     
-    // Filter option for chores
-    @State private var selectedFilter: TaskFilter = .all
-    @State private var sort: SortFilter = .due // sorts chores based on due date
-    @Environment(\.dismiss) private var dismiss // dismiss action
+    // Local state for filtering and sorting
+    @State private var selectedFilter: TaskFilter = .all // Filter: House/Mine/Roommates
+    @State private var sort: SortFilter = .due           // Sort: Priority/Completion/Due Date
+    
+    // Environment for dismissing the view
+    @Environment(\.dismiss) private var dismiss
+    
+    // Whether this view is presented as a sheet (shows back button)
     private var isSheetPresentation: Bool
     
     init(userID: String, selectedDate: Date, viewModel: CalendarViewModel, isSheetPresentation: Bool = false) {
@@ -27,18 +33,24 @@ struct DailyTasksView: View {
         self.isSheetPresentation = isSheetPresentation
     }
     
+    // Computed property: chores filtered and sorted based on user selections
     private var visibleChores: [(id: String, chore: Chore)] {
+        // Get chores for the selected date
         var dayChores = viewModel.choresForDate(selectedDate)
         
+        // Apply filter
         switch selectedFilter {
         case .all:
-            break
+            break // Show all chores
         case .mine:
+            // Only chores assigned to current user
             dayChores = dayChores.filter { $0.chore.assignedUsers.contains(userID) }
         case .roommates:
+            // Only chores assigned to others
             dayChores = dayChores.filter { !$0.chore.assignedUsers.contains(userID) && !$0.chore.assignedUsers.isEmpty }
         }
         
+        // Apply sorting
         switch sort {
         case .priorityLevel:
             return dayChores.sorted { viewModel.priorityRank($0.chore.priorityLevel) < viewModel.priorityRank($1.chore.priorityLevel) }
@@ -54,6 +66,8 @@ struct DailyTasksView: View {
             VStack(spacing: 0) {
                 headerSection
                 dateDisplay
+                
+                // Filter chips
                 FilterChips(selection: $selectedFilter)
                     .padding(.horizontal)
                     .padding(.vertical, 8)
@@ -65,12 +79,15 @@ struct DailyTasksView: View {
             .navigationBarHidden(true)
         }
         .onAppear {
+            // Load data when view appears
             viewModel.loadData(userID: userID)
         }
     }
     
+    // Header with title and sort menu
     private var headerSection: some View {
         HStack {
+            // Back button (only in sheet presentation)
             if isSheetPresentation {
                 Button {
                     dismiss()
@@ -88,6 +105,7 @@ struct DailyTasksView: View {
             
             Spacer()
             
+            // Sort menu
             Menu {
                 Text("Sort Tasks By")
                     .font(.caption)
@@ -109,6 +127,7 @@ struct DailyTasksView: View {
         .padding(.top, 8)
     }
     
+    // Display the selected date
     private var dateDisplay: some View {
         Text(selectedDate.formatted(date: .complete, time: .omitted))
             .font(.subheadline)
@@ -117,6 +136,7 @@ struct DailyTasksView: View {
             .padding(.top, 4)
     }
     
+    // Shows loading, empty state, or task list
     private var contentSection: some View {
         Group {
             if viewModel.isLoading {
@@ -131,6 +151,7 @@ struct DailyTasksView: View {
         }
     }
     
+    // Displayed when no chores exist for the selected date
     private var emptyStateView: some View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
@@ -148,6 +169,7 @@ struct DailyTasksView: View {
         .frame(maxWidth: .infinity, minHeight: 300)
     }
     
+    // Scrollable list of task cards
     private var tasksList: some View {
         ScrollView {
             LazyVStack(spacing: 14) {
@@ -162,11 +184,15 @@ struct DailyTasksView: View {
     }
 }
 
+// Filter options for tasks
 enum TaskFilter: String, CaseIterable, Identifiable {
-    case all = "House", mine = "Mine", roommates = "Roommates"
+    case all = "House"
+    case mine = "Mine"
+    case roommates = "Roommates"
     var id: String { rawValue }
 }
 
+// Sort options for tasks
 enum SortFilter: String, CaseIterable, Identifiable {
     case priorityLevel = "Priority Level"
     case completion = "Completion"
@@ -174,6 +200,7 @@ enum SortFilter: String, CaseIterable, Identifiable {
     var id: String { self.rawValue }
 }
 
+// Horizontal scrolling filter chips
 private struct FilterChips: View {
     @Binding var selection: TaskFilter
     
@@ -197,6 +224,7 @@ private struct FilterChips: View {
     }
 }
 
+// Small colored tag showing priority level
 private struct PriorityTag: View {
     let priority: String
     
@@ -220,11 +248,13 @@ private struct PriorityTag: View {
     }
 }
 
+// Card displaying a single task with all its details
 private struct TaskCard: View {
     let choreID: String
     let chore: Chore
     let viewModel: CalendarViewModel
     
+    // Color for the card border based on priority
     private var priorityColor: Color {
         switch chore.priorityLevel.lowercased() {
         case "high": return .red
@@ -253,6 +283,7 @@ private struct TaskCard: View {
         .accessibilityElement(children: .combine)
     }
     
+    // Header with name, date, priority, and completion checkbox
     private var headerRow: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
@@ -270,6 +301,7 @@ private struct TaskCard: View {
             }
             Spacer()
             
+            // Completion toggle button
             Button {
                 withAnimation(.snappy) {
                     viewModel.toggleChoreCompletion(choreID: choreID)
@@ -283,6 +315,7 @@ private struct TaskCard: View {
         }
     }
     
+    // Optional description text
     private var descriptionSection: some View {
         Group {
             if !chore.description.isEmpty && chore.description != " " {
@@ -294,6 +327,7 @@ private struct TaskCard: View {
         }
     }
     
+    // Shows assigned users or "Unassigned" label
     private var assigneesSection: some View {
         Group {
             if !chore.assignedUsers.isEmpty {
@@ -302,6 +336,7 @@ private struct TaskCard: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     
+                    // Show up to 3 assignee chips
                     ForEach(chore.assignedUsers.prefix(3), id: \.self) { userId in
                         let memberName = viewModel.nameForUser(userId)
                         let memberColor = viewModel.colorForUser(userId)
@@ -315,6 +350,7 @@ private struct TaskCard: View {
                             .clipShape(Capsule())
                     }
                     
+                    // Show +N if more than 3 assignees
                     if chore.assignedUsers.count > 3 {
                         Text("+\(chore.assignedUsers.count - 3)")
                             .font(.caption)

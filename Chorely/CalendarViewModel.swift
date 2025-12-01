@@ -9,43 +9,54 @@ import Foundation
 import FirebaseFirestore
 import SwiftUI
 
-// Filter options for viewing chores
+// Filter options for viewing chores on the calendar
+// Users can filter to see all house chores, just their own, or just roommates' chores
 enum ChoreFilter: String, CaseIterable, Identifiable {
-    case house = "House" // All chores in the group
-    case mine = "Mine" // Only current user's chores
-    case roommates = "Roommates" // Only roommates' chores
+    case house = "House"
+    case mine = "Mine"
+    case roommates = "Roommates"
     
     var id: String { rawValue }
 }
 
+// Stores information about a group member for display purposes
+// Used to show colored dots on calendar and assignee names on chores
 struct GroupMemberInfo: Identifiable {
-    let id: String // User's Firebase UID
-    let name: String
-    let color: Color
-    let colorString: String
+    let id: String          // Firebase UID
+    let name: String        // Display name
+    let color: Color        // SwiftUI color for UI elements
+    let colorString: String // Original color name from Firebase
 }
 
-// ViewModel for CalendarView and DailyTasksView
-// Handles fetching chores and group members using FirebaseInterface
+// ViewModel that manages data for CalendarView and DailyTasksView
+// Handles fetching chores and group members from Firebase
+// Uses real-time listeners to keep data in sync
 @MainActor
 class CalendarViewModel: ObservableObject {
-    @Published var chores: [String: Chore] = [:] // documentID : Chore
-    @Published var groupMembers: [GroupMemberInfo] = []
-    @Published var currentUserID: String = ""
-    @Published var currentUserName: String = ""
-    @Published var selectedFilter: ChoreFilter = .house
-    @Published var isLoading = true
-    @Published var errorMessage = ""
     
+    // Published properties automatically update the UI when changed
+    @Published var chores: [String: Chore] = [:]       // Dictionary mapping documentID to Chore
+    @Published var groupMembers: [GroupMemberInfo] = [] // All members in the user's group
+    @Published var currentUserID: String = ""           // Currently logged in user's ID
+    @Published var currentUserName: String = ""         // Currently logged in user's name
+    @Published var selectedFilter: ChoreFilter = .house // Current filter selection
+    @Published var isLoading = true                     // Shows loading spinner when true
+    @Published var errorMessage = ""                    // Error message to display
     
-    private var groupKey: String?
-    private var choresListener: ListenerRegistration?
-    private var membersListener: ListenerRegistration?
+    // Private properties for Firebase operations
+    private var groupKey: String?                           // User's group identifier
+    private var choresListener: ListenerRegistration?       // Real-time listener for chores
+    private var membersListener: ListenerRegistration?      // Real-time listener for members
     
+    // Returns all chore document IDs as an array
     var choreIDs: [String] {
         Array(chores.keys)
     }
     
+    // Returns chore IDs filtered based on the selected filter option
+    // - house: returns all chores
+    // - mine: returns only chores assigned to current user
+    // - roommates: returns chores assigned to others (not current user)
     var filteredChoreIDs: [String] {
         switch selectedFilter {
         case .house:
@@ -60,11 +71,14 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    // Returns all chores scheduled for a specific date
+    // Returns tuples of (documentID, Chore) for easy iteration
     func choresForDate(_ date: Date) -> [(id: String, chore: Chore)] {
         let calendar = Calendar.current
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         
+        // Filter chores that match the given date
         return filteredChoreIDs.compactMap { id in
             guard let chore = chores[id],
                   let choreDate = dateFormatter.date(from: chore.date),
@@ -73,10 +87,13 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    // Returns unique colors for all assignees of chores on a given date
+    // Used to display colored dots on calendar day cells
     func assigneeColorsForDate(_ date: Date) -> [Color] {
         let dayChores = choresForDate(date)
         var colors: [Color] = []
         
+        // Collect unique colors from all assigned users
         for (_, chore) in dayChores {
             for userID in chore.assignedUsers {
                 if let member = groupMembers.first(where: { $0.id == userID }) {
@@ -87,6 +104,7 @@ class CalendarViewModel: ObservableObject {
             }
         }
         
+        // Default to gray if chores exist but no specific assignees
         if colors.isEmpty && !dayChores.isEmpty {
             colors.append(.gray)
         }
@@ -94,22 +112,30 @@ class CalendarViewModel: ObservableObject {
         return colors
     }
     
+    // Checks if any chores exist for a given date
     func dateHasChores(_ date: Date) -> Bool {
         return !choresForDate(date).isEmpty
     }
     
+    // Finds a group member by their Firebase UID
     func getMember(byID id: String) -> GroupMemberInfo? {
         return groupMembers.first(where: { $0.id == id })
     }
     
+    // Returns the color associated with a user ID
+    // Falls back to gray if user not found
     func colorForUser(_ userID: String) -> Color {
         return getMember(byID: userID)?.color ?? .gray
     }
     
+    // Returns the display name for a user ID
+    // Falls back to "Unknown" if user not found
     func nameForUser(_ userID: String) -> String {
         return getMember(byID: userID)?.name ?? "Unknown"
     }
     
+    // Main entry point for loading data
+    // Fetches user data, then sets up real-time listeners for chores and members
     func loadData(userID: String) {
         self.currentUserID = userID
         isLoading = true
@@ -117,11 +143,13 @@ class CalendarViewModel: ObservableObject {
         
         Task {
             do {
+                // Fetch user data using FirebaseInterface
                 let userData = try await FirebaseInterface.shared.getUserData(uid: userID)
                 let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
                 
                 self.currentUserName = userData["Name"] as? String ?? "User"
                 
+                // Verify user has a group key
                 guard let keyString = keys.string else {
                     self.errorMessage = "No group key found"
                     self.isLoading = false
@@ -130,6 +158,7 @@ class CalendarViewModel: ObservableObject {
                 
                 self.groupKey = keyString
                 
+                // Set up real-time listeners for chores and group members
                 setupChoresListener(groupKey: keyString)
                 if let intKey = keys.int {
                     setupMembersListener(groupKey: intKey)
@@ -142,13 +171,15 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    // Toggles a chore's completion status
+    // Uses markComplete when checking off, editChore when unchecking
     func toggleChoreCompletion(choreID: String) {
         guard let groupKey = groupKey,
               let chore = chores[choreID] else { return }
         
         Task {
             if chore.completed {
-                // Create a new Chore object with the updated completion status
+                // Unchecking: create updated chore with completed = false
                 let updatedChore = Chore(
                     checklist: chore.checklist,
                     date: chore.date,
@@ -167,13 +198,14 @@ class CalendarViewModel: ObservableObject {
                     proposal: chore.proposal
                 )
                 
-                // Use the existing editChore function
+                // Use editChore to update the chore in Firebase
                 editChore(documentId: choreID, chore: updatedChore, groupKey: groupKey) { success in
                     if success {
                         print("Chore unchecked successfully")
                     }
                 }
             } else {
+                // Checking off: use markComplete which also records who completed it
                 await FirebaseInterface.shared.markComplete(
                     userName: currentUserName,
                     choreId: choreID,
@@ -183,14 +215,19 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    // Deletes a chore from Firebase
     func deleteChore(choreID: String) {
         guard let groupKey = groupKey else { return }
         FirebaseInterface.shared.deleteChore(groupKey: groupKey, choreId: choreID)
     }
     
+    // Sets up a real-time listener for chores in the user's group
+    // The listener automatically updates the chores dictionary when changes occur
     private func setupChoresListener(groupKey: String) {
+        // Remove any existing listener to prevent duplicates
         choresListener?.remove()
         
+        // Set up new listener using FirebaseInterface
         choresListener = FirebaseInterface.shared.addChoresListener(groupKey: groupKey) { [weak self] documents, error in
             guard let self = self else { return }
             
@@ -207,12 +244,15 @@ class CalendarViewModel: ObservableObject {
                     return
                 }
                 
+                // Parse documents into Chore objects
                 self.chores = self.readChoreDocuments(documents)
                 print("Loaded \(self.chores.count) chores for calendar")
             }
         }
     }
     
+    // Sets up a real-time listener for group members
+    // Updates groupMembers array when members are added/removed/changed
     private func setupMembersListener(groupKey: Int) {
         membersListener?.remove()
         
@@ -236,13 +276,18 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    // Converts Firestore documents into a dictionary of Chore objects
+    // Maps document ID to Chore for easy lookup
     private func readChoreDocuments(_ documents: [QueryDocumentSnapshot]) -> [String: Chore] {
         var result: [String: Chore] = [:]
         
         for doc in documents {
             let data = doc.data()
+            
+            // Name is required - skip documents without it
             guard let name = data["Name"] as? String else { continue }
             
+            // Create Chore object with all fields from Firebase
             let chore = Chore(
                 checklist: data["Checklist"] as? Bool ?? false,
                 date: data["Date"] as? String ?? "",
@@ -266,6 +311,7 @@ class CalendarViewModel: ObservableObject {
         return result
     }
     
+    // Converts Firestore documents into GroupMemberInfo objects
     private func readMemberDocuments(_ documents: [QueryDocumentSnapshot]) -> [GroupMemberInfo] {
         return documents.compactMap { doc -> GroupMemberInfo? in
             let data = doc.data()
@@ -283,35 +329,26 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    // Converts a color name string to a SwiftUI Color
     private func colorFromString(_ colorName: String) -> Color {
         switch colorName.lowercased() {
-        case "red":
-            return .red
-        case "blue":
-            return .blue
-        case "green":
-            return .green
-        case "yellow":
-            return .yellow
-        case "orange":
-            return .orange
-        case "purple":
-            return .purple
-        case "pink":
-            return .pink
-        case "cyan":
-            return .cyan
-        case "mint":
-            return .mint
-        case "teal":
-            return .teal
-        case "indigo":
-            return .indigo
-        default:
-            return .green
+        case "red": return .red
+        case "blue": return .blue
+        case "green": return .green
+        case "yellow": return .yellow
+        case "orange": return .orange
+        case "purple": return .purple
+        case "pink": return .pink
+        case "cyan": return .cyan
+        case "mint": return .mint
+        case "teal": return .teal
+        case "indigo": return .indigo
+        default: return .green
         }
     }
     
+    // Converts priority string to numeric rank for sorting
+    // Lower number = higher priority (high=0, medium=1, low=2)
     func priorityRank(_ priority: String) -> Int {
         switch priority.lowercased() {
         case "high": return 0
@@ -320,6 +357,8 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    // Cleanup: remove Firebase listeners when ViewModel is deallocated
+    // Prevents memory leaks and unnecessary network traffic
     deinit {
         choresListener?.remove()
         membersListener?.remove()

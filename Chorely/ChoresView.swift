@@ -7,24 +7,33 @@
 
 import SwiftUI
 
+// Main view for displaying all chores in the user's group
+// Shows a list of chores that can be checked off, deleted via swipe, or filtered
 struct ChoresView: View {
     
+    // ViewModel handles data fetching and business logic
     @StateObject private var viewModel: ChoresViewModel
+    
+    // User ID for Firebase queries
     private let userID: String
     
     init(userID: String) {
         self.userID = userID
+        // Initialize StateObject with new ViewModel instance
         _viewModel = StateObject(wrappedValue: ChoresViewModel())
     }
     
     var body: some View {
         VStack {
+            // Show different content based on loading/error/empty/data states
             if viewModel.isLoading {
+                // Loading state
                 Spacer()
                 ProgressView("Loading chores...")
                 Spacer()
                 
             } else if !viewModel.errorMessage.isEmpty {
+                // Error state
                 Spacer()
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
@@ -38,6 +47,7 @@ struct ChoresView: View {
                 Spacer()
                 
             } else if viewModel.chores.isEmpty {
+                // Empty state - no chores yet
                 Spacer()
                 VStack(spacing: 12) {
                     Image(systemName: "checklist")
@@ -53,12 +63,17 @@ struct ChoresView: View {
                 Spacer()
                 
             } else {
+                // Data state - show list of chores
                 List {
+                    // Iterate through sorted chore IDs
                     ForEach(viewModel.sortedChoreIDs, id: \.self) { choreID in
                         if let chore = viewModel.chores[choreID] {
+                            // Display each chore row
                             ChoreRowView(chore: chore, choreID: choreID) {
+                                // Toggle completion when checkbox tapped
                                 viewModel.toggleChoreCompletion(choreID: choreID)
                             }
+                            // Swipe left to delete
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     viewModel.deleteChore(choreID: choreID)
@@ -73,6 +88,7 @@ struct ChoresView: View {
             }
         }
         .navigationTitle("Chores")
+        // Plus button in toolbar to add new chore
         .toolbar {
             Button {
                 viewModel.showingNewChoreView = true
@@ -80,23 +96,26 @@ struct ChoresView: View {
                 Image(systemName: "plus")
             }
         }
+        // Sheet for creating new chore
         .sheet(isPresented: $viewModel.showingNewChoreView) {
             NewChoreView(newChorePresented: $viewModel.showingNewChoreView)
         }
+        // Load chores when view appears
         .onAppear {
-            // Call the existing function to load data
             viewModel.fetchUserAndLoadChores(userID: userID)
         }
     }
 }
 
+// Single row in the chores list displaying one chore
 struct ChoreRowView: View {
-    let chore: Chore
-    let choreID: String
-    let onToggleComplete: () -> Void
+    let chore: Chore              // The chore to display
+    let choreID: String           // Document ID for updates
+    let onToggleComplete: () -> Void // Callback when checkbox tapped
     
     var body: some View {
         HStack(spacing: 12) {
+            // Completion checkbox
             Button {
                 onToggleComplete()
             } label: {
@@ -104,14 +123,17 @@ struct ChoreRowView: View {
                     .font(.title2)
                     .foregroundColor(chore.completed ? .green : .gray)
             }
-            .buttonStyle(PlainButtonStyle())
+            .buttonStyle(PlainButtonStyle()) // Prevents row highlight on tap
             
+            // Chore details
             VStack(alignment: .leading, spacing: 4) {
+                // Chore name with strikethrough if completed
                 Text(chore.name)
                     .font(.headline)
                     .strikethrough(chore.completed, color: .gray)
                     .foregroundColor(chore.completed ? .secondary : .primary)
                 
+                // Date and priority row
                 HStack(spacing: 8) {
                     if !chore.date.isEmpty {
                         Label(chore.date, systemImage: "calendar")
@@ -122,6 +144,7 @@ struct ChoreRowView: View {
                     ChorePriorityBadge(priority: chore.priorityLevel)
                 }
                 
+                // Optional description
                 if !chore.description.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text(chore.description)
                         .font(.caption)
@@ -129,6 +152,7 @@ struct ChoreRowView: View {
                         .lineLimit(2)
                 }
                 
+                // Repetition info if set
                 if chore.repetitionTime != "None" && !chore.repetitionTime.isEmpty {
                     Label(chore.repetitionTime, systemImage: "repeat")
                         .font(.caption2)
@@ -139,13 +163,15 @@ struct ChoreRowView: View {
             Spacer()
         }
         .padding(.vertical, 8)
-        .opacity(chore.completed ? 0.6 : 1.0)
+        .opacity(chore.completed ? 0.6 : 1.0) // Fade completed chores
     }
 }
 
+// Small colored badge showing chore priority level
 struct ChorePriorityBadge: View {
     let priority: String
     
+    // Color based on priority
     var color: Color {
         switch priority.lowercased() {
         case "high": return .red

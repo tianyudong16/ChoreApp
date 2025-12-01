@@ -8,13 +8,14 @@
 import SwiftUI
 import FirebaseFirestore
 
-// Model for group member
+// Model representing a member of the user's group
+// Used for displaying group member avatars
 struct GroupMember: Identifiable {
-    let id: String
-    let name: String
-    let color: Color
+    let id: String    // Firebase document ID
+    let name: String  // Display name
+    let color: Color  // User's chosen color for their avatar
     
-    // Convert string color name to SwiftUI Color
+    // Converts a color name string to a SwiftUI Color
     static func colorFromString(_ colorName: String) -> Color {
         switch colorName.lowercased() {
         case "red": return .red
@@ -33,17 +34,20 @@ struct GroupMember: Identifiable {
     }
 }
 
-// Home Screen
+// Main home screen showing welcome message, group members, and action buttons
 struct HomeView: View {
-    var name: String
-    var groupName: String
-    var userID: String
+    var name: String      // Current user's name
+    var groupName: String // Name of the user's group
+    var userID: String    // Firebase user ID
+    
+    // ViewModel for calendar data (shared with DailyTasksView)
     @StateObject private var calendarViewModel = CalendarViewModel()
     
-    @State private var showApprovalAlert = false
-    @State private var choreToApprove: String? = "Wash the dishes" // Sample chore
-    @State private var groupMembers: [GroupMember] = []
-    @State private var isLoadingMembers = true
+    // State for UI elements
+    @State private var showApprovalAlert = false      // Controls approval alert visibility
+    @State private var choreToApprove: String? = "Wash the dishes" // Sample chore for demo
+    @State private var groupMembers: [GroupMember] = [] // List of group members
+    @State private var isLoadingMembers = true        // Shows loading indicator
     
     var body: some View {
         VStack {
@@ -56,6 +60,7 @@ struct HomeView: View {
         .padding()
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
+        // Approval request alert (for future feature)
         .alert(
             "Approval Request",
             isPresented: $showApprovalAlert,
@@ -78,11 +83,13 @@ struct HomeView: View {
             Text("A group member has requested approval for: \"\(choreName)\". Do you approve?")
         }
         .onAppear {
+            // Load group members and calendar data when view appears
             fetchGroupMembers()
             calendarViewModel.loadData(userID: userID)
         }
     }
     
+    // Welcome message and group name display
     private var welcomeHeader: some View {
         VStack {
             Text("Welcome \(name)!")
@@ -100,12 +107,14 @@ struct HomeView: View {
         }
     }
     
+    // Section showing all group members with their avatars
     private var groupMembersSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Group Members")
                 .font(.headline)
                 .foregroundColor(.secondary)
             
+            // Show different content based on loading state
             if isLoadingMembers {
                 loadingMembersView
             } else if groupMembers.isEmpty {
@@ -122,6 +131,7 @@ struct HomeView: View {
         .padding(.horizontal)
     }
     
+    // Loading indicator while fetching members
     private var loadingMembersView: some View {
         HStack {
             ProgressView()
@@ -132,12 +142,14 @@ struct HomeView: View {
         .padding(.vertical, 8)
     }
     
+    // Shown when no group members found
     private var emptyMembersView: some View {
         Text("No members found")
             .foregroundColor(.secondary)
             .italic()
     }
     
+    // Horizontal scrolling list of member avatars
     private var membersScrollView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
@@ -149,12 +161,15 @@ struct HomeView: View {
         }
     }
     
+    // Navigation buttons to Today's Chores and View Chores
     private var actionButtonsSection: some View {
         VStack(spacing: 12) {
+            // Today's Chores button - opens DailyTasksView for today
             NavigationLink(destination: DailyTasksView(userID: userID, selectedDate: Date(), viewModel: calendarViewModel)) {
                 ActionButtonLabel(title: "Today's Chores", color: .green)
             }
             
+            // View Chores button - opens full ChoresView
             NavigationLink(destination: ChoresView(userID: userID)) {
                 ActionButtonLabel(title: "View Chores", color: .blue)
             }
@@ -162,11 +177,13 @@ struct HomeView: View {
         .padding(.horizontal)
     }
     
+    // Fetches all members in the user's group from Firebase
     private func fetchGroupMembers() {
         isLoadingMembers = true
         
         Task {
             do {
+                // Get current user's data to find their groupKey
                 let userData = try await FirebaseInterface.shared.getUserData(uid: userID)
                 let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
                 
@@ -176,6 +193,7 @@ struct HomeView: View {
                     return
                 }
                 
+                // Fetch all users with the same groupKey
                 FirebaseInterface.shared.fetchGroupMembers(groupKey: groupKeyInt) { documents, error in
                     DispatchQueue.main.async {
                         isLoadingMembers = false
@@ -190,6 +208,7 @@ struct HomeView: View {
                             return
                         }
                         
+                        // Convert Firestore documents to GroupMember objects
                         groupMembers = readMemberDocuments(documents)
                         print("Loaded \(groupMembers.count) group members")
                     }
@@ -203,6 +222,7 @@ struct HomeView: View {
         }
     }
     
+    // Converts Firestore documents into GroupMember objects
     private func readMemberDocuments(_ documents: [QueryDocumentSnapshot]) -> [GroupMember] {
         return documents.compactMap { doc -> GroupMember? in
             let data = doc.data()
@@ -218,11 +238,13 @@ struct HomeView: View {
     }
 }
 
+// Circular avatar showing a group member's initial and color
 struct MemberAvatarView: View {
     let member: GroupMember
     
     var body: some View {
         VStack(spacing: 8) {
+            // Colored circle with initial
             Circle()
                 .fill(member.color)
                 .frame(width: 50, height: 50)
@@ -233,6 +255,7 @@ struct MemberAvatarView: View {
                 )
                 .shadow(color: member.color.opacity(0.4), radius: 4, y: 2)
             
+            // Member name
             Text(member.name)
                 .font(.caption)
                 .fontWeight(.medium)
@@ -242,6 +265,7 @@ struct MemberAvatarView: View {
     }
 }
 
+// Reusable button label for navigation links
 struct ActionButtonLabel: View {
     let title: String
     let color: Color

@@ -310,21 +310,24 @@ class FirebaseInterface {
     
     // New consolidated functions for chore and user operations
     
+    // HELPER FUNCTIONS ADDED FOR VIEWMODEL SUPPORT
+    
+    
     // Extracts groupKey from user data, handling both Int and String types
+    // Returns tuple with both string and int versions for flexibility
+    // userData: Dictionary from getUserData
+    // Returns: (string version, int version) - either may be nil
     func extractGroupKey(from userData: [String: Any]) -> (string: String?, int: Int?) {
         var groupKeyString: String?
         var groupKeyInt: Int?
         
+        // Handle groupKey stored as Int
         if let intKey = userData["groupKey"] as? Int {
             groupKeyString = String(intKey)
             groupKeyInt = intKey
-        } else if let strKey = userData["groupKey"] as? String {
-            groupKeyString = strKey
-            groupKeyInt = Int(strKey)
-        } else if let intKey = userData["GroupKey"] as? Int {
-            groupKeyString = String(intKey)
-            groupKeyInt = intKey
-        } else if let strKey = userData["GroupKey"] as? String {
+        }
+        // Handle groupKey stored as String
+        else if let strKey = userData["groupKey"] as? String {
             groupKeyString = strKey
             groupKeyInt = Int(strKey)
         }
@@ -339,6 +342,11 @@ class FirebaseInterface {
     }
     
     // Sets up a real-time listener for chores in a group
+    // Used by CalendarViewModel and ChoresViewModel
+    // Parameters:
+    //   groupKey: The group's key (as string)
+    //   onUpdate: Callback with array of document snapshots
+    // Returns: ListenerRegistration to remove listener when done
     func addChoresListener(groupKey: String, onChange: @escaping ([QueryDocumentSnapshot]?, Error?) -> Void) -> ListenerRegistration {
         return db
             .collection("chores")
@@ -349,7 +357,12 @@ class FirebaseInterface {
             }
     }
     
-    // Sets up a real-time listener for group members
+    // Sets up real-time listener for group members
+    // Used by CalendarViewModel to get member colors
+    // Parameters:
+    //   groupKey: The group's numeric key
+    //   onUpdate: Callback with array of document snapshots
+    // Returns: ListenerRegistration to remove listener when done
     func addGroupMembersListener(groupKey: Int, onChange: @escaping ([QueryDocumentSnapshot]?, Error?) -> Void) -> ListenerRegistration {
         return db
             .collection("Users")
@@ -398,7 +411,13 @@ class FirebaseInterface {
             }
     }
     
-    // Updates a specific field for a user by their userID
+    // Updates a single field in a user's document by their userID
+    // Used by ProfileView to save name and color changes
+    // Parameters:
+    //   userID: Firebase UID of the user
+    //   field: Name of the field to update
+    //   value: New value for the field
+    //   completion: Callback with error (nil on success)
     func updateUserField(userID: String, field: String, value: Any, completion: ((Error?) -> Void)? = nil) {
         db
             .collection("Users")
@@ -435,6 +454,10 @@ class FirebaseInterface {
 
     
     // Checks if a group exists by groupKey
+    // Used during registration when joining existing group
+    // Parameters:
+    //   groupKey: The 6-digit group code to check
+    // Returns: (exists: Bool, userData: first user's data if found)
     func checkGroupExists(groupKey: Int, completion: @escaping (Bool, [String: Any]?) -> Void) {
         db
             .collection("Users")
