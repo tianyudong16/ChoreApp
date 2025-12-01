@@ -182,30 +182,56 @@ class FirebaseInterface {
     //choreId is the documentation id of the chore and should be just the name of the chore
     //groupKey is the groupKey of the chore
     //Implemented by Ron on 11.30.2025
-    func markComplete(userName: String, choreId: String, groupKey: String){
-        let chore = db.collection("chores").document("groups").collection(groupKey).document(choreId)
-        
-        chore.getDocument { snapshot, error in
-            if let error = error {
-                print("Error fetching chore: \(error)")
-                return
-            }
-
-            let data = snapshot?.data() ?? [:]
-            let oldDescription = data["Description"] as? String ?? ""
-
-            let newDescription = oldDescription + "\n\(userName) did the chore."
-
-            chore.updateData([
-                "completed": true,
-                "Description": newDescription
-            ]) { error in
-                if let error = error {
-                    print("Error marking complete: \(error)")
-                } else {
-                    print("Chore \(choreId) marked complete by \(userName)")
+    //edited by Tian to be able to show which user completed the task
+    func markComplete(userName: String, choreId: String, groupKey: String) async {
+        do {
+            let choreRef = db.collection("chores")
+                .document("group")
+                .collection(groupKey)
+                .document(choreId)
+            
+            // Use a transaction to prevent race conditions
+            try await db.runTransaction({ (transaction, errorPointer) -> Any? in
+                let snapshot: DocumentSnapshot
+                do {
+                    snapshot = try transaction.getDocument(choreRef)
+                } catch let error as NSError {
+                    errorPointer?.pointee = error
+                    return nil
                 }
-            }
+                
+                guard snapshot.exists else {
+                    print("Chore not found: \(choreId)")
+                    return nil
+                }
+                
+                let data = snapshot.data() ?? [:]
+                
+                // Check if chore is already completed
+                let isCompleted = data["completed"] as? Bool ?? false
+                if isCompleted {
+                    print("Chore already completed")
+                    return nil
+                }
+                
+                // Get current description (keep it unchanged)
+                let currentDescription = data["Description"] as? String ?? ""
+                
+                // Update the document - DO NOT modify description
+                transaction.updateData([
+                    "completed": true,
+                    "completedBy": userName,  // Store who completed it
+                    "completedAt": Date().timeIntervalSince1970  // Store when
+                ], forDocument: choreRef)
+                
+                return nil
+                
+            })
+            
+            print("Chore \(choreId) marked complete by \(userName)")
+            
+        } catch {
+            print("Error marking complete: \(error)")
         }
     }
     //We need to make a chore log repository for this
