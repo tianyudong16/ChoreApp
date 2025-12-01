@@ -64,7 +64,15 @@ class FirebaseInterface {
     
     //Adds a new user to the repository with the provided properties
     //TO DO: make it so that the color is different for each user in the group
-    func addUser(name: String, email: String, color: String? = nil, groupKey: Int? = nil, groupName: String, password: String, roommatesNames: [String]? = []) async throws -> AuthDataResultModel {
+    func addUser(
+        name: String,
+        email: String,
+        color: String? = nil,
+        groupKey: Int? = nil,
+        groupName: String,
+        password: String,
+        roommatesNames: [String]? = []
+    ) async throws -> AuthDataResultModel {
         print("Attempting to add user: \(name), \(groupName)")
         
         //This block of code authenticates the user using the Auth library, but does not add user data
@@ -76,6 +84,8 @@ class FirebaseInterface {
         // I (Tian) created this groupKey randomizer for creating a new group
         // TODO: Perhaps a way to prevent generating duplicate numbers
         let newGroupKey = groupKey ?? Int.random(in: 100000...999999)
+        let groupKeyString = String(newGroupKey)
+        
         
         //This block of code adds user information to the Users collection (written by Ron, added to by Milo)
         do {
@@ -128,6 +138,14 @@ class FirebaseInterface {
         } catch {
             print("Error editing user: \(error)")
         }
+    }
+    
+    // Helper: Update single field
+    func updateUserField(
+        userID: String,
+        field: String,
+        value: Any) async throws {
+        try await db.collection("Users").document(userID).updateData([field: value])
     }
     
     //A private function to help streamline editUser, it would be too bloated if we had to put this whole block for each thing individually.
@@ -358,8 +376,7 @@ class FirebaseInterface {
     
     // Deletes a chore from a group
     func deleteChore(groupKey: String, choreId: String, completion: ((Error?) -> Void)? = nil) {
-        db
-            .collection("chores")
+        db.collection("chores")
             .document("group")
             .collection(groupKey)
             .document(choreId)
@@ -395,20 +412,27 @@ class FirebaseInterface {
     }
     
     // Saves a new chore to Firebase and returns the document reference
-    func saveChore(groupKey: String, choreData: [String: Any], completion: ((Error?) -> Void)? = nil) {
-        db
-            .collection("chores")
+    func saveChore(groupKey: String, choreData: [String: Any]) {
+        
+        let groupCollection = db.collection("chores")
             .document("group")
             .collection(groupKey)
-            .addDocument(data: choreData) { error in
-                if let error = error {
-                    print("Save failed: \(error)")
-                } else {
-                    print("Chore saved successfully!")
-                }
-                completion?(error)
-            }
+        
+        // Ensure parent group document exists (but with NO chore fields)
+        let groupDoc = db.collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .document(groupKey)
+
+        groupDoc.setData([
+            "groupKey": groupKey,
+            "createdAt": Date().timeIntervalSince1970
+        ], merge: true)
+
+        // Save the actual chore in the subcollection
+        groupCollection.addDocument(data: choreData)
     }
+
     
     // Checks if a group exists by groupKey
     func checkGroupExists(groupKey: Int, completion: @escaping (Bool, [String: Any]?) -> Void) {
@@ -526,6 +550,7 @@ func editChore(documentId: String, chore: Chore, groupKey: String, completion: @
 //userId is the documentId of the user
 //function is to change the groupKey of user to the group's groupKey
 //created by Ron on 11.19
+/*
 func joinGroup(userId: String, groupKey: Int) async {
     do {
         let userData = db.collection("users").document(userId)
@@ -540,6 +565,13 @@ func joinGroup(userId: String, groupKey: Int) async {
         print("Failed to join", error)
     }
 }
+*/
+func joinGroup(userID: String, groupKey: Int) async throws {
+    try await db.collection("Users")
+        .document(userID)
+        .updateData(["groupKey": groupKey])
+}
+
 
 func voteProposal(groupKey: String, choreId: String, userId: String, approved: Bool, completion: @escaping (Bool) -> Void) {
     
