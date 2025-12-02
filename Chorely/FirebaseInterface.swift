@@ -84,7 +84,6 @@ class FirebaseInterface {
         // I (Tian) created this groupKey randomizer for creating a new group
         // TODO: Perhaps a way to prevent generating duplicate numbers
         let newGroupKey = groupKey ?? Int.random(in: 100000...999999)
-        let groupKeyString = String(newGroupKey)
         
         
         //This block of code adds user information to the Users collection (written by Ron, added to by Milo)
