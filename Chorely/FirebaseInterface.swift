@@ -85,13 +85,17 @@ class FirebaseInterface {
         // TODO: Perhaps a way to prevent generating duplicate numbers
         let newGroupKey = groupKey ?? Int.random(in: 100000...999999)
         
+        // When a user first creates their account, they are assigned a random color
+        // The color struct is located in ProfileColor
+        let assignedColor = color ?? ProfileColor.random().rawValue
+        
         
         //This block of code adds user information to the Users collection (written by Ron, added to by Milo)
         do {
             try await db.collection("Users").document(result.uid).setData([
                 "Email": email,
                 "Name": name,
-                "color": color ?? "Green",
+                "color": color ?? assignedColor,
                 "groupKey": newGroupKey,
                 "groupName": groupName,
                 "password": password,

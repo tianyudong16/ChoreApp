@@ -10,64 +10,7 @@ import UserNotifications
 import PhotosUI
 import FirebaseFirestore
 
-// Available colors for user profiles
-// Each user can choose a color to identify themselves in the group
-enum ProfileColor: String, CaseIterable, Identifiable {
-    case red = "Red"
-    case blue = "Blue"
-    case green = "Green"
-    case yellow = "Yellow"
-    case orange = "Orange"
-    case purple = "Purple"
-    case pink = "Pink"
-    case cyan = "Cyan"
-    case mint = "Mint"
-    case teal = "Teal"
-    
-    // Required for Identifiable protocol
-    var id: String { rawValue }
-    
-    // Converts enum to SwiftUI Color
-    var color: Color {
-        switch self {
-        case .red:
-            return .red
-        case .blue:
-            return .blue
-        case .green:
-            return .green
-        case .yellow:
-            return .yellow
-        case .orange:
-            return .orange
-        case .purple:
-            return .purple
-        case .pink:
-            return .pink
-        case .cyan:
-            return .cyan
-        case .mint:
-            return .mint
-        case .teal:
-            return .teal
-        }
-    }
-    
-    // Creates ProfileColor from a string (for loading from Firebase)
-    static func fromString(_ string: String) -> ProfileColor {
-        return ProfileColor(rawValue: string) ?? .green
-    }
-    
-    // Finds ProfileColor that matches a SwiftUI Color
-    static func fromColor(_ color: Color) -> ProfileColor {
-        for profileColor in ProfileColor.allCases {
-            if profileColor.color == color {
-                return profileColor
-            }
-        }
-        return .green
-    }
-}
+// ProfileColor enum is defined in ProfileColor.swift
 
 // User profile screen showing personal info, group info, and settings
 struct ProfileView: View {
@@ -363,7 +306,6 @@ struct ProfileView: View {
     }
     
     // Handles photo picker selection
-    // Not fully working yet but this is low priority
     private func handlePhotoSelection(_ newItem: PhotosPickerItem?) {
         guard let newItem else { return }
         

@@ -68,7 +68,6 @@ class ChoresViewModel: ObservableObject {
     
     func toggleChoreCompletion(choreID: String) {
         guard let groupKey = groupKey,
-              let groupKeyInt = groupKeyInt,
               let chore = chores[choreID] else { return }
         
         if chore.completed {
