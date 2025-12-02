@@ -83,6 +83,9 @@ class FirebaseInterface {
         
         // I (Tian) created this groupKey randomizer for creating a new group
         // TODO: Perhaps a way to prevent generating duplicate numbers
+        //Note: This line of code will only run if no groupKey is provided.
+        //However, a unique groupKey will be provided if you run this function using registerWithGroupCode.
+        //This line will run, however, if the execution stack is ->register->createUser->addUser, ie. a user creates an account without joining an existing group.
         let newGroupKey = groupKey ?? Int.random(in: 100000...999999)
         
         // When a user first creates their account, they are assigned a random color
@@ -255,46 +258,36 @@ class FirebaseInterface {
             print("Error marking complete: \(error)")
         }
     }
-    //We need to make a chore log repository for this
     //Also, for repeating chores, we will need to make it so that the chore is marked as "uncomplete" before it's due again.
     
-    //In progress, not yet completed
-    func makeLogDoc(groupKey:String, completion: @escaping ([String: Any]?) -> Void) async throws {
-        //This will create a new document called "Log" if it doesn't exist (or overwrite it if it does exist)
-        //We should only ever call this function ONCE PER GROUP. If you run setData a second time, the log will be OVERWRITTEN
-        
-        //Just to make sure that we don't overwrite Log, I will add a precondition to make sure Log already exists
-        db.collection("chores").document("group").collection(groupKey).document("Log").getDocument {snapshot, err in
-            if let err = err {
-                print("Error getting document: \(err)")
-                return
-            } else {
-                if snapshot?.exists == true {
-                    print("The Log already exists, ending the function here")
-                    return
-                }
-            }
-        }
-        
+    //This function adds a new chore to the log
+    //Implemented by Milo on 12/2/25
+    func recordChore(groupKey:String, choreId: String) async throws {
         let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
-        do {
-            let names = try await getGroupMembers(groupKey: groupKeyAsInt ?? 0)
-            print(names)
-        } catch {
-            print("Error getting document: \(error)")
-        }
-        
-        print("Attempting to add Log doc")
-        db.collection("chores").document("group").collection(groupKey).document("Log").setData(
-            [:]
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("error getting userID")
+            return
+        }//Grab the current users uid
+        let userRefString = db.collection("Users").document(userId)
+        let userRef = db.document(userRefString.path)//Get a reference to the currently logged in user's doc
+           
+        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
+        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+           
+        print("Attempting to log the chore...")
+        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
+            data: [
+                "timestamp": Timestamp(date: Date()),
+                "chore": choreRef,
+                "whoDidIt": userRef,
+            ]
             ) { err in
             if let err = err {
-                print("Error adding Log doc: \(err)")
+                print("Error logging the chore: \(err)")
             } else {
-                print("Log doc added successfully!")
+                print("Chore logged successfully!")
             }
         }
-        //Before I populate the Log, we need to decide: What kind of data is stored in the log? Do we need to know when the people completed the chores as a timestamp? Or just how many times each user completed each chore? What about having the log be an entirely separate collection with a list of docs, each doc representing a user completing the chore at a given time??? Depending on how much info we need to store, a single doc per group may not be enough
     }
     
     //This may be needed as a helper function for makeLogDoc or other functions
