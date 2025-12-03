@@ -16,6 +16,8 @@ class ChoresViewModel: ObservableObject {
     @Published var chores: [String: Chore] = [:]
     @Published var isLoading = true
     @Published var errorMessage = ""
+    @Published var approvedChores: [(id: String, chore: Chore)] = []
+    @Published var pendingChores:  [(id: String, chore: Chore)] = []
     
     private var groupKey: String?
     private var groupKeyInt: Int?
@@ -23,6 +25,12 @@ class ChoresViewModel: ObservableObject {
     private var listener: ListenerRegistration?
     
     init() {}
+    
+    func startListening(groupKey: String) {
+            self.groupKey = groupKey
+            self.groupKeyInt = Int(groupKey)
+            setupChoresListener(groupKey: groupKey)
+        }
     
     var sortedChoreIDs: [String] {
         chores.keys.sorted { id1, id2 in
@@ -126,10 +134,14 @@ class ChoresViewModel: ObservableObject {
                 
                 guard let documents = documents else {
                     self.chores = [:]
+                    self.pendingChores = []
+                    self.approvedChores = []
                     return
                 }
                 
                 self.chores = self.readChoreDocuments(documents)
+                let choreList = self.chores.map { (id: $0.key, chore: $0.value) }
+                self.updateChoreLists(choreList)
                 print("Loaded \(self.chores.count) chores")
             }
         }
@@ -156,12 +168,35 @@ class ChoresViewModel: ObservableObject {
                 assignedUsers: data["assignedUsers"] as? [String] ?? [],
                 completed: data["completed"] as? Bool ?? false,
                 voters: data["voters"] as? [String] ?? [],
-                proposal: data["proposal"] as? Bool ?? false
+                proposal: data["proposal"] as? Bool ?? false,
+                createdBy: data["createdBy"] as? String ?? ""
             )
             result[doc.documentID] = chore
         }
         
         return result
+    }
+    
+    func updateChoreLists(_ choreList: [(id: String, chore: Chore)]) {
+        // Filter into approved and pending
+        let approved = choreList.filter { !$0.chore.proposal }
+        let pending = choreList.filter { $0.chore.proposal }
+        
+        // Sort approved chores: uncompleted first, then by date, then by priority
+        self.approvedChores = approved.sorted { item1, item2 in
+            let chore1 = item1.chore
+            let chore2 = item2.chore
+            
+            if chore1.completed != chore2.completed {
+                return !chore1.completed
+            }
+            if chore1.date != chore2.date {
+                return chore1.date < chore2.date
+            }
+            return priorityRank(chore1.priorityLevel) < priorityRank(chore2.priorityLevel)
+        }
+        
+        self.pendingChores = pending
     }
     
     private func priorityRank(_ priority: String) -> Int {

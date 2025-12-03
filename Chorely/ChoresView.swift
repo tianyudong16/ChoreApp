@@ -46,7 +46,7 @@ struct ChoresView: View {
                 .padding()
                 Spacer()
                 
-            } else if viewModel.chores.isEmpty {
+            } else if viewModel.approvedChores.isEmpty {
                 // Empty state - no chores yet
                 Spacer()
                 VStack(spacing: 12) {
@@ -63,23 +63,20 @@ struct ChoresView: View {
                 Spacer()
                 
             } else {
-                // Data state - show list of chores
+                // Data state - show list of approved chores only
                 List {
-                    // Iterate through sorted chore IDs
-                    ForEach(viewModel.sortedChoreIDs, id: \.self) { choreID in
-                        if let chore = viewModel.chores[choreID] {
-                            // Display each chore row
-                            ChoreRowView(chore: chore, choreID: choreID) {
-                                // Toggle completion when checkbox tapped
-                                viewModel.toggleChoreCompletion(choreID: choreID)
-                            }
-                            // Swipe left to delete
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    viewModel.deleteChore(choreID: choreID)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                    ForEach(viewModel.approvedChores, id: \.id) { item in
+                        // Display each chore row
+                        ChoreRowView(chore: item.chore, choreID: item.id) {
+                            // Toggle completion when checkbox tapped
+                            viewModel.toggleChoreCompletion(choreID: item.id)
+                        }
+                        // Swipe left to delete
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                viewModel.deleteChore(choreID: item.id)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
                         }
                     }

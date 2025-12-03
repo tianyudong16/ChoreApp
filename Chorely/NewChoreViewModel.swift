@@ -24,17 +24,18 @@ class NewChoreViewModel: ObservableObject {
     @Published var showAlert = false       // Shows error alert
     @Published var isLoading = true        // Shows loading state while fetching group
     
-    // User's group key (needed to save chore to correct group)
+    // User and group info
     private var groupKey: String?
+    private var groupKeyInt: Int?
+    private var currentUserID: String?
+    private var groupMemberCount: Int = 0
     
     init() {
-        // Automatically fetch group key when ViewModel is created
         fetchGroupKey()
     }
     
-    // Fetches the current user's group key from Firebase
+    // Fetches the current user's group key and counts group members
     private func fetchGroupKey() {
-        // Get current user's UID from Firebase Auth
         guard let uid = Auth.auth().currentUser?.uid else {
             DispatchQueue.main.async {
                 self.isLoading = false
@@ -43,18 +44,31 @@ class NewChoreViewModel: ObservableObject {
             return
         }
         
+        self.currentUserID = uid
+        
         Task {
             do {
-                // Fetch user data using pre-existing function
+                // Fetch user data
                 let userData = try await FirebaseInterface.shared.getUserData(uid: uid)
-                
-                // Extract group key using pre-existing helper
                 let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
                 
+                guard let groupKeyStr = keys.string, let groupKeyInt = keys.int else {
+                    await MainActor.run {
+                        self.isLoading = false
+                        self.showAlert = true
+                    }
+                    return
+                }
+                
+                // Count how many members are in this group
+                let memberCount = try await countGroupMembers(groupKey: groupKeyInt)
+                
                 await MainActor.run {
-                    self.groupKey = keys.string
+                    self.groupKey = groupKeyStr
+                    self.groupKeyInt = groupKeyInt
+                    self.groupMemberCount = memberCount
                     self.isLoading = false
-                    print("GROUP KEY LOADED: \(keys.string ?? "NIL")")
+                    print("GROUP KEY LOADED: \(groupKeyStr), MEMBERS: \(memberCount)")
                 }
             } catch {
                 await MainActor.run {
@@ -66,8 +80,18 @@ class NewChoreViewModel: ObservableObject {
         }
     }
     
+    // Counts how many users are in the group
+    // added to handle the base case (if only 1 group member exists in a group, then no need for pending approvals)
+    private func countGroupMembers(groupKey: Int) async throws -> Int {
+        let snapshot = try await FirebaseInterface.shared.firestore
+            .collection("Users")
+            .whereField("groupKey", isEqualTo: groupKey)
+            .getDocuments()
+        
+        return snapshot.documents.count
+    }
+    
     // Validates if the form can be saved
-    // Requires: non-empty title, not loading, and valid group key
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !isLoading &&
@@ -76,8 +100,9 @@ class NewChoreViewModel: ObservableObject {
     
     // Saves the new chore to Firebase
     func save() {
-        // Validate before saving
-        guard canSave, let groupKey = groupKey else {
+        guard canSave,
+              let groupKey = groupKey,
+              let userID = currentUserID else {
             showAlert = true
             return
         }
@@ -91,7 +116,10 @@ class NewChoreViewModel: ObservableObject {
         dateFormatter.dateFormat = "EEEE"
         let dayStr = dateFormatter.string(from: dueDate)
         
-        // Create a new Chore object using the pre-existing struct
+        // If only 1 user in group, auto-approve (proposal = false)
+        // Otherwise, set as pending (proposal = true)
+        let needsApproval = groupMemberCount > 1
+        
         let newChore = Chore(
             checklist: false,
             date: dateStr,
@@ -107,7 +135,8 @@ class NewChoreViewModel: ObservableObject {
             completed: false,
             votes: 0,
             voters: [],
-            proposal: false
+            proposal: needsApproval,
+            createdBy: userID  // Track who created this chore
         )
         
         // Save using pre-existing addChore function

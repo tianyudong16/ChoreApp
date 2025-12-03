@@ -40,7 +40,9 @@ struct Chore {
     
     var votes: Int = 0
     var voters: [String]
-    var proposal:  Bool  = false
+    var proposal: Bool = false
+    var createdBy: String = "" // I (Tian) added this variable to track the User ID of who created this chore
+                               // used for the pending approvals (same user cannot approve their own request)
 }
 
 
@@ -474,7 +476,8 @@ func addChore(chore: Chore, groupKey: String){
         "completed": chore.completed,
         "votes": chore.votes,
         "voters": chore.voters,
-        "proposal": chore.proposal
+        "proposal": chore.proposal,
+        "createdBy": chore.createdBy // added for the pending approvals and tracking who created the chore
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
@@ -500,19 +503,18 @@ func editChore(documentId: String, chore: Chore, groupKey: String, completion: @
         "completed": chore.completed,
         "votes": chore.votes,
         "voters": chore.voters,
-        "proposal": chore.proposal
-    ])  { err in
-        if let  err = err {
-            print("Error editimg chore: \(err)")
+        "proposal": chore.proposal,
+        "createdBy": chore.createdBy // tracking user who created the chore (or sent the request)
+    ]) { err in
+        if let err = err {
+            print("Error editing chore: \(err)")
             completion(false)
             return
         }
         
         print("Chore edited successfully!")
-        
         completion(true)
     }
-    
 }
 
 //userId is the documentId of the user
