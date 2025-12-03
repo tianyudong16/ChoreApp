@@ -107,7 +107,7 @@ class NewChoreViewModel: ObservableObject {
             completed: false,
             votes: 0,
             voters: [],
-            proposal: false
+            proposal: true
         )
         
         // Save using pre-existing addChore function

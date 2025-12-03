@@ -43,11 +43,15 @@ struct HomeView: View {
     // ViewModel for calendar data (shared with DailyTasksView)
     @StateObject private var calendarViewModel = CalendarViewModel()
     
+    @StateObject private var choresViewModel = ChoresViewModel()
+
+    
     // State for UI elements
     @State private var showApprovalAlert = false      // Controls approval alert visibility
-    @State private var choreToApprove: String? = "Wash the dishes" // Sample chore for demo
+    @State private var selectedPendingChore: (id: String, chore: Chore)? = nil
     @State private var groupMembers: [GroupMember] = [] // List of group members
     @State private var isLoadingMembers = true        // Shows loading indicator
+    @State private var groupKeyString: String? //keeps group key so chores can be deleted/edited
     
     var body: some View {
         VStack {
@@ -61,26 +65,49 @@ struct HomeView: View {
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
         // Approval request alert (for future feature)
-        .alert(
-            "Approval Request",
-            isPresented: $showApprovalAlert,
-            presenting: choreToApprove
-        ) { choreName in
+        .alert("Approval Request", isPresented: $showApprovalAlert) {
+            // APPROVE
             Button("Approve") {
-                print("Approved \(choreName)!")
-                withAnimation {
-                    choreToApprove = nil
+                guard
+                    let pending = selectedPendingChore,
+                    let groupKey = groupKeyString
+                else { return }
+
+                var updated = pending.chore
+                updated.proposal = false   // now approved
+
+                editChore(documentId: pending.id, chore: updated, groupKey: groupKey) { success in
+                    if success {
+                        // Remove from local pending list
+                        if let index = choresViewModel.pendingChores.firstIndex(where: { $0.id == pending.id }) {
+                            choresViewModel.pendingChores.remove(at: index)
+                        }
+                    }
                 }
             }
-            Button("Deny", role: .destructive) {
-                print("Denied \(choreName)!")
-                withAnimation {
-                    choreToApprove = nil
-                }
+
+            // REJECT
+            Button("Reject", role: .destructive) {
+                guard
+                    let pending = selectedPendingChore,
+                    let groupKey = groupKeyString
+                else { return }
+
+                FirebaseInterface.shared.deleteChore(groupKey: groupKey, choreId: pending.id) { _ in
+                        if let index = choresViewModel.pendingChores.firstIndex(where: { $0.id == pending.id }) {
+                            choresViewModel.pendingChores.remove(at: index)
+                        }
+                    }
             }
-            Button("Cancel", role: .cancel) {}
-        } message: { choreName in
-            Text("A group member has requested approval for: \"\(choreName)\". Do you approve?")
+
+            Button("Cancel", role: .cancel) { }
+
+        } message: {
+            if let chore = selectedPendingChore?.chore {
+                    Text("A group member has requested approval for: \"\(chore.name)\". Do you approve?")
+                } else {
+                    Text("No chore selected.")
+                }
         }
         .onAppear {
             // Load group members and calendar data when view appears
@@ -173,6 +200,17 @@ struct HomeView: View {
             NavigationLink(destination: ChoresView(userID: userID)) {
                 ActionButtonLabel(title: "View Chores", color: .blue)
             }
+            if !choresViewModel.pendingChores.isEmpty, groupKeyString != nil {
+                        Button {
+                            selectedPendingChore = choresViewModel.pendingChores.first
+                            showApprovalAlert = true
+                        } label: {
+                            ActionButtonLabel(
+                                title: "Pending Approvals (\(choresViewModel.pendingChores.count))",
+                                color: .orange
+                            )
+                        }
+                    }
         }
         .padding(.horizontal)
     }
@@ -187,10 +225,16 @@ struct HomeView: View {
                 let userData = try await FirebaseInterface.shared.getUserData(uid: userID)
                 let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
                 
-                guard let groupKeyInt = keys.int else {
+                guard let groupKeyInt = keys.int, let groupKeyStr = keys.string
+                else {
                     print("Could not find groupKey for current user")
                     await MainActor.run { isLoadingMembers = false }
                     return
+                }
+                
+                await MainActor.run {
+                    self.groupKeyString = groupKeyStr
+                    choresViewModel.startListening(groupKey: groupKeyStr)
                 }
                 
                 // Fetch all users with the same groupKey
@@ -281,8 +325,20 @@ struct ActionButtonLabel: View {
     }
 }
 
-#Preview {
+/*#Preview {
     NavigationStack {
         HomeView(name: "Test User", groupName: "Test Group", userID: "")
+    }
+}
+*/
+//dummy data so preview works
+#Preview {
+    NavigationStack {
+        HomeView(
+            name: "Test User",
+            groupName: "Test Group",
+            userID: "preview-user-not-real"
+        )
+        .environmentObject(ChoresViewModel()) // optional but safe
     }
 }

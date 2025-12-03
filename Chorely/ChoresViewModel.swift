@@ -16,6 +16,8 @@ class ChoresViewModel: ObservableObject {
     @Published var chores: [String: Chore] = [:]
     @Published var isLoading = true
     @Published var errorMessage = ""
+    @Published var approvedChores: [(id: String, chore: Chore)] = []
+    @Published var pendingChores:  [(id: String, chore: Chore)] = []
     
     private var groupKey: String?
     private var groupKeyInt: Int?
@@ -23,6 +25,12 @@ class ChoresViewModel: ObservableObject {
     private var listener: ListenerRegistration?
     
     init() {}
+    
+    func startListening(groupKey: String) {
+            self.groupKey = groupKey
+            self.groupKeyInt = Int(groupKey)
+            setupChoresListener(groupKey: groupKey)
+        }
     
     var sortedChoreIDs: [String] {
         chores.keys.sorted { id1, id2 in
@@ -126,10 +134,14 @@ class ChoresViewModel: ObservableObject {
                 
                 guard let documents = documents else {
                     self.chores = [:]
+                    self.pendingChores = []
+                    self.approvedChores = []
                     return
                 }
                 
                 self.chores = self.readChoreDocuments(documents)
+                let choreList = self.chores.map { (id: $0.key, chore: $0.value) }
+                self.updateChoreLists(choreList)
                 print("Loaded \(self.chores.count) chores")
             }
         }
@@ -162,6 +174,11 @@ class ChoresViewModel: ObservableObject {
         }
         
         return result
+    }
+    
+    func updateChoreLists(_ choreList: [(id: String, chore: Chore)]) {
+        self.approvedChores = choreList.filter { !$0.chore.proposal }
+        self.pendingChores  = choreList.filter {  $0.chore.proposal }
     }
     
     private func priorityRank(_ priority: String) -> Int {
