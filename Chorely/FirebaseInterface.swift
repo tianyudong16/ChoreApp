@@ -208,52 +208,18 @@ class FirebaseInterface {
     //Implemented by Ron on 11.30.2025
     //edited by Tian to be able to show which user completed the task
     func markComplete(userName: String, choreId: String, groupKey: String) async {
+        let choreRef = db.collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .document(choreId)
+        
         do {
-            let choreRef = db.collection("chores")
-                .document("group")
-                .collection(groupKey)
-                .document(choreId)
-            
-            // Use a transaction to prevent race conditions
-            try await db.runTransaction({ (transaction, errorPointer) -> Any? in
-                let snapshot: DocumentSnapshot
-                do {
-                    snapshot = try transaction.getDocument(choreRef)
-                } catch let error as NSError {
-                    errorPointer?.pointee = error
-                    return nil
-                }
-                
-                guard snapshot.exists else {
-                    print("Chore not found: \(choreId)")
-                    return nil
-                }
-                
-                let data = snapshot.data() ?? [:]
-                
-                // Check if chore is already completed
-                let isCompleted = data["completed"] as? Bool ?? false
-                if isCompleted {
-                    print("Chore already completed")
-                    return nil
-                }
-                
-                // Get current description (keep it unchanged)
-                let currentDescription = data["Description"] as? String ?? ""
-                
-                // Update the document - DO NOT modify description
-                transaction.updateData([
-                    "completed": true,
-                    "completedBy": userName,  // Store who completed it
-                    "completedAt": Date().timeIntervalSince1970  // Store when
-                ], forDocument: choreRef)
-                
-                return nil
-                
-            })
-            
+            try await choreRef.updateData([
+                "completed": true,
+                "completedBy": userName,
+                "completedAt": Date().timeIntervalSince1970
+            ])
             print("Chore \(choreId) marked complete by \(userName)")
-            
         } catch {
             print("Error marking complete: \(error)")
         }
