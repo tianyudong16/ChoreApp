@@ -209,7 +209,7 @@ struct HomeView: View {
         
         return VStack(spacing: 12) {
             // Today's Chores button - opens DailyTasksView for today
-            NavigationLink(destination: DailyTasksView(userID: userID, selectedDate: Date(), viewModel: calendarViewModel)) {
+            NavigationLink(destination: DailyTasksView(userID: userID, currentUserName: name, selectedDate: Date(), viewModel: calendarViewModel)) {
                 ActionButtonLabel(title: "Today's Chores", color: .green)
             }
             

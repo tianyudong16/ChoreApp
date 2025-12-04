@@ -32,7 +32,19 @@ struct GroupMemberInfo: Identifiable {
 // Handles fetching chores and group members from Firebase
 // Uses real-time listeners to keep data in sync
 @MainActor
+
+
+
 class CalendarViewModel: ObservableObject {
+    
+    private let calendar = Calendar.current
+    
+    private static let dateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"    // same as Chore.date
+        df.locale = Locale(identifier: "en_US_POSIX")
+        return df
+    }()
     
     // Published properties automatically update the UI when changed
     @Published var chores: [String: Chore] = [:]       // Dictionary mapping documentID to Chore
@@ -73,19 +85,70 @@ class CalendarViewModel: ObservableObject {
     
     // Returns all chores scheduled for a specific date
     // Returns tuples of (documentID, Chore) for easy iteration
+    //I (Brooke) updated this function so when a chore is repeated (like weekly) it is reflected on the calendar
     func choresForDate(_ date: Date) -> [(id: String, chore: Chore)] {
-        let calendar = Calendar.current
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        // Filter chores that match the given date
-        return filteredChoreIDs.compactMap { id in
-            guard let chore = chores[id],
-                  let choreDate = dateFormatter.date(from: chore.date),
-                  calendar.isDate(choreDate, inSameDayAs: date) else { return nil }
-            return (id, chore)
+            let targetDay = calendar.startOfDay(for: date)
+            var result: [(id: String, chore: Chore)] = []
+            
+            for (id, chore) in chores {
+                //takes the filter into consideration
+                guard passesFilter(chore: chore) else { continue }
+                
+                //parse chores start date
+                guard let startDate = Self.dateFormatter.date(from: chore.date) else { continue }
+                let startDay = calendar.startOfDay(for: startDate)
+                
+                //only show chore after the day it starts
+                if targetDay < startDay { continue }
+                
+                //non repeating
+                if chore.repetitionTime == "None" || chore.repetitionTime.isEmpty {
+                    if targetDay == startDay {
+                        result.append((id: id, chore: chore))
+                    }
+                    continue
+                }
+                
+                //repeating chores
+                switch chore.repetitionTime {
+                case "Daily":
+                    //everyday day from startDate onward
+                    result.append((id: id, chore: chore))
+                    
+                case "Weekly":
+                    //same weekday, and difference in days is multiple of 7
+                    let daysDiff = calendar.dateComponents([.day], from: startDay, to: targetDay).day ?? 0
+                    if daysDiff >= 0 && daysDiff % 7 == 0 {
+                        result.append((id: id, chore: chore))
+                    }
+                    
+                case "Monthly":
+                    //same day of month
+                    let startComponents = calendar.dateComponents([.day], from: startDay)
+                    let targetComponents = calendar.dateComponents([.day], from: targetDay)
+                    if startComponents.day == targetComponents.day {
+                        result.append((id: id, chore: chore))
+                    }
+                    
+                case "Yearly":
+                    //same month/day every year
+                    let startComponents = calendar.dateComponents([.month, .day], from: startDay)
+                    let targetComponents = calendar.dateComponents([.month, .day], from: targetDay)
+                    if startComponents.month == targetComponents.month &&
+                        startComponents.day == targetComponents.day {
+                        result.append((id: id, chore: chore))
+                    }
+                    
+                default:
+                    //treat like non-repeating
+                    if targetDay == startDay {
+                        result.append((id: id, chore: chore))
+                    }
+                }
+            }
+            
+            return result
         }
-    }
     
     // Returns unique colors for all assignees of chores on a given date
     // Used to display colored dots on calendar day cells
@@ -116,6 +179,18 @@ class CalendarViewModel: ObservableObject {
     func dateHasChores(_ date: Date) -> Bool {
         return !choresForDate(date).isEmpty
     }
+    
+    private func passesFilter(chore: Chore) -> Bool {
+            switch selectedFilter {
+            case .house:
+                return true
+            case .mine:
+                return chore.assignedUsers.contains(currentUserName)
+            case .roommates:
+                return !chore.assignedUsers.isEmpty &&
+                       !chore.assignedUsers.contains(currentUserName)
+            }
+        }
     
     // Finds a group member by their Firebase UID
     func getMember(byID id: String) -> GroupMemberInfo? {

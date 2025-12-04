@@ -26,7 +26,8 @@ struct MainTabView: View {
             
             NavigationStack {
                 CalendarView(
-                    userID: user.uid
+                    userID: user.uid,
+                    userName: user.name
                 )
             }
             .tabItem { Label("Calendar", systemImage: "calendar") }

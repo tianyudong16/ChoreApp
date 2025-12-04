@@ -14,6 +14,7 @@ struct DailyTasksView: View {
     // Required parameters
     let userID: String                        // Current user's ID
     let selectedDate: Date                    // Date to show chores for
+    let currentUserName: String
     @ObservedObject var viewModel: CalendarViewModel // Shared ViewModel from parent
     
     // Local state for filtering and sorting
@@ -26,8 +27,9 @@ struct DailyTasksView: View {
     // Whether this view is presented as a sheet (shows back button)
     private var isSheetPresentation: Bool
     
-    init(userID: String, selectedDate: Date, viewModel: CalendarViewModel, isSheetPresentation: Bool = false) {
+    init(userID: String, currentUserName: String, selectedDate: Date, viewModel: CalendarViewModel, isSheetPresentation: Bool = false) {
         self.userID = userID
+        self.currentUserName = currentUserName
         self.selectedDate = selectedDate
         self.viewModel = viewModel
         self.isSheetPresentation = isSheetPresentation
@@ -44,7 +46,7 @@ struct DailyTasksView: View {
             break // Show all chores
         case .mine:
             // Only chores assigned to current user
-            dayChores = dayChores.filter { $0.chore.assignedUsers.contains(userID) }
+            dayChores = dayChores.filter { $0.chore.assignedUsers.contains(currentUserName) }
         case .roommates:
             // Only chores assigned to others
             dayChores = dayChores.filter { !$0.chore.assignedUsers.contains(userID) && !$0.chore.assignedUsers.isEmpty }
@@ -389,32 +391,21 @@ private struct TaskCard: View {
     // Shows assigned users or "Unassigned" label
     private var assigneesSection: some View {
         Group {
-            if !chore.assignedUsers.isEmpty {
+            if let assignee = chore.assignedUsers.first {
                 HStack {
                     Text("Assigned to:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     
-                    // Show up to 3 assignee chips
-                    ForEach(chore.assignedUsers.prefix(3), id: \.self) { userId in
-                        let memberName = viewModel.nameForUser(userId)
-                        let memberColor = viewModel.colorForUser(userId)
-                        
-                        Text(memberName)
-                            .font(.caption)
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
-                            .background(memberColor.opacity(0.2))
-                            .foregroundStyle(memberColor)
-                            .clipShape(Capsule())
-                    }
+                    Text(assignee)
+                        .font(.caption)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(Color.accentColor.opacity(0.15))
+                        .foregroundStyle(Color.accentColor)
+                        .clipShape(Capsule())
                     
-                    // Show +N if more than 3 assignees
-                    if chore.assignedUsers.count > 3 {
-                        Text("+\(chore.assignedUsers.count - 3)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Spacer()
                 }
             } else {
                 HStack {
@@ -433,5 +424,5 @@ private struct TaskCard: View {
 }
 
 #Preview {
-    DailyTasksView(userID: "test", selectedDate: Date(), viewModel: CalendarViewModel())
+    DailyTasksView(userID: "test", currentUserName: "test", selectedDate: Date(), viewModel: CalendarViewModel())
 }
