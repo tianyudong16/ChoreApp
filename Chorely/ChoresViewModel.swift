@@ -213,7 +213,6 @@ class ChoresViewModel: ObservableObject {
     func updateChoreLists(_ choreList: [(id: String, chore: Chore)]) {
         let approved = choreList.filter { !$0.chore.proposal }
         let pending = choreList.filter { $0.chore.proposal }
-        self.roommateStats  = computeRoommateStats(from: choreList)
         
         // Sort approved chores: uncompleted first, then by date, then by priority
         self.approvedChores = approved.sorted { item1, item2 in
@@ -231,7 +230,7 @@ class ChoresViewModel: ObservableObject {
         
         self.pendingChores = pending
     }
-
+    
     private func computeRoommateStats(from choreList: [(id: String, chore: Chore)]) -> [RoommateStats] {
         var totalAssigned: [String: Int] = [:]
         var totalCompleted: [String: Int] = [:]
@@ -249,24 +248,6 @@ class ChoresViewModel: ObservableObject {
         var stats: [RoommateStats] = []
         
         for (user, total) in totalAssigned {
-            let completed = totalCompleted[user, default: 0]
-            stats.append(
-                RoommateStats(
-                    name: user,
-                    completedCount: completed,
-                    totalAssignedCount: total
-                )
-            )
-        }
-        
-        return stats.sorted { lhs, rhs in
-            if lhs.completedCount != rhs.completedCount {
-                return lhs.completedCount > rhs.completedCount
-            } else {
-                //if equal stats, sort by name
-                return lhs.name < rhs.name
-            }
-        }
             let completed = totalCompleted[user, default: 0]
             stats.append(
                 RoommateStats(

@@ -138,8 +138,12 @@ class NewChoreViewModel: ObservableObject {
     
     // Saves the new chore to Firebase
         // Validate before saving
-    guard canSave, let groupKey = groupKey, let userID = currentUserID, let assignee = assignedUser else {
-        guard canSave, let groupKey = groupKey, let userID = currentUserID, let assignee = assignedUser else {
+    func save(){
+        guard canSave,
+            let groupKey = groupKey,
+            let userID = currentUserID,
+            let assignee = assignedUser
+        else {
             showAlert = true
             return
         }
@@ -168,8 +172,8 @@ class NewChoreViewModel: ObservableObject {
             monthlyRepeatByWeek: "",
             name: title,
             priorityLevel: priorityLevel,
+            repetitionTime: repetitionTime,
             timeLength: 30, // Default 30 minutes
-            assignedUsers: [assignee], //roommate chore is assigned to
             assignedUsers: [assignee], //roommate chore is assigned to
             completed: false,
             voters: [],

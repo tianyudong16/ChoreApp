@@ -59,7 +59,7 @@ struct NewChoreView: View {
                     .pickerStyle(.menu)
                 }
                 
-                //Assigns the new chore to a group member
+                
                 Section(header: Text("Assign To")) {
                     if viewModel.isLoading {
                         Text("Loading group members…")
