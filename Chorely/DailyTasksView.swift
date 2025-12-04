@@ -48,8 +48,11 @@ struct DailyTasksView: View {
             // Only chores assigned to current user
             dayChores = dayChores.filter { $0.chore.assignedUsers.contains(currentUserName) }
         case .roommates:
-            // Only chores assigned to others
-            dayChores = dayChores.filter { !$0.chore.assignedUsers.contains(userID) && !$0.chore.assignedUsers.isEmpty }
+            //only chores assigned to roommates
+            dayChores = dayChores.filter { choreItem in
+                let myName = viewModel.currentUserName
+                return !choreItem.chore.assignedUsers.contains(myName)
+            }
         }
         
         // Apply sorting
