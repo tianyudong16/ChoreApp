@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Chorely needs full access to add and manage chore events.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Chorely writes your chores as events to your calendar.</string>
+</dict>
+</plist>

@@ -33,9 +33,18 @@ struct CalendarView: View {
             daysOfWeekHeader
             calendarContent
             
+            if !viewModel.errorMessage.isEmpty {
+                Text(viewModel.errorMessage)
+                    .font(.footnote)
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+            }
+            
             Spacer()
             
             todayChoresButton
+            exportChoresButton
         }
         .navigationTitle("Calendar")
         .navigationBarTitleDisplayMode(.inline)
@@ -164,6 +173,25 @@ struct CalendarView: View {
         .padding(.horizontal)
         .padding(.bottom, 16)
     }
+    private var exportChoresButton: some View {
+        Button {
+            viewModel.exportMyChoresToAppleCalendar()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.plus")
+                Text("Export My Chores")
+                    .fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.accentColor)
+            .foregroundStyle(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 16)
+    }
+
 }
 
 struct CalendarDayCell: View {

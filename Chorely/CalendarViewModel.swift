@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseFirestore
 import SwiftUI
+import EventKit
 
 // Filter options for viewing chores on the calendar
 // Users can filter to see all house chores, just their own, or just roommates' chores
@@ -59,6 +60,8 @@ class CalendarViewModel: ObservableObject {
     private var groupKey: String?                           // User's group identifier
     private var choresListener: ListenerRegistration?       // Real-time listener for chores
     private var membersListener: ListenerRegistration?      // Real-time listener for members
+    private let eventStore = EKEventStore()
+    
     
     // Returns all chore document IDs as an array
     var choreIDs: [String] {
@@ -208,6 +211,84 @@ class CalendarViewModel: ObservableObject {
     func nameForUser(_ userID: String) -> String {
         return getMember(byID: userID)?.name ?? "Unknown"
     }
+    
+    
+    //Export all the chores to apple calendar
+    func exportMyChoresToAppleCalendar() {
+        errorMessage = ""
+        
+        if #available(iOS 17.0, *) {
+            eventStore.requestFullAccessToEvents { [weak self] granted, error in
+                self?.handleCalendarAccessResult(granted: granted, error: error)
+            }
+        } else {
+            eventStore.requestAccess(to: .event) { [weak self] granted, error in
+                self?.handleCalendarAccessResult(granted: granted, error: error)
+            }
+        }
+    }
+    
+    private func handleCalendarAccessResult(granted: Bool, error: Error?) {
+        Task { @MainActor in
+            if let error = error {
+                self.errorMessage = "Calendar error: \(error.localizedDescription)"
+                return
+            }
+            
+            if !granted {
+                self.errorMessage = "Calendar access denied in Settings"
+                return
+            }
+            
+            let count = self.createEventsForMyChores()
+            if count == 0 {
+                self.errorMessage = "No chores assigned to you to export"
+            } else {
+                self.errorMessage = "Exported \(count) chores to Apple Calendar"
+            }
+        }
+    }
+
+    private func createEventsForMyChores() -> Int {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        var created = 0
+        
+        for chore in chores.values {
+            // consider it "mine" if it has my id OR my name
+            let isMine =
+                chore.assignedUsers.contains(currentUserID) ||
+                chore.assignedUsers.contains(currentUserName)
+            
+            guard isMine else { continue }
+            guard let day = dateFormatter.date(from: chore.date) else { continue }
+            
+            let event = EKEvent(eventStore: eventStore)
+            event.title = chore.name
+            
+            if !chore.description.isEmpty {
+                event.notes = chore.description
+            }
+            
+            event.isAllDay = true
+            event.startDate = day
+            event.endDate = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day
+            
+            event.calendar = eventStore.defaultCalendarForNewEvents
+            
+            do {
+                try eventStore.save(event, span: .thisEvent)
+                created += 1
+            } catch {
+                print("Failed to save event \(chore.name): \(error)")
+            }
+        }
+        
+        return created
+    }
+
+
     
     // Main entry point for loading data
     // Fetches user data, then sets up real-time listeners for chores and members
