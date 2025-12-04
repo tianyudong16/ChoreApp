@@ -46,8 +46,8 @@ struct ChoresView: View {
                 .padding()
                 Spacer()
                 
-            } else if viewModel.chores.isEmpty {
-                // Empty state - no chores yet
+            } else if viewModel.approvedChores.isEmpty {
+                // Empty state - no approved chores yet
                 Spacer()
                 VStack(spacing: 12) {
                     Image(systemName: "checklist")
@@ -63,30 +63,26 @@ struct ChoresView: View {
                 Spacer()
                 
             } else {
-                // Data state - show list of chores
+                // Data state - show list of approved chores only
                 List {
-                    // Iterate through sorted chore IDs
-                    ForEach(viewModel.sortedChoreIDs, id: \.self) { choreID in
-                        if let chore = viewModel.chores[choreID] {
-                            // Display each chore row
-                            ChoreRowView(
-                                chore: chore,
-                                choreID: choreID,
-                                onToggleComplete: {
-                                    viewModel.toggleChoreCompletion(choreID: choreID)
-                                },
-                                onDeleteSingle: {
-                                    viewModel.deleteChore(choreID: choreID)
-                                },
-                                onDeleteFuture: {
-                                    viewModel.deleteFutureOccurrences(
-                                        seriesId: chore.seriesId,
-                                        fromDate: chore.date,
-                                        choreID: choreID
-                                    )
-                                }
-                            )
-                        }
+                    ForEach(viewModel.approvedChores, id: \.id) { item in
+                        ChoreRowView(
+                            chore: item.chore,
+                            choreID: item.id,
+                            onToggleComplete: {
+                                viewModel.toggleChoreCompletion(choreID: item.id)
+                            },
+                            onDeleteSingle: {
+                                viewModel.deleteChore(choreID: item.id)
+                            },
+                            onDeleteFuture: {
+                                viewModel.deleteFutureOccurrences(
+                                    seriesId: item.chore.seriesId,
+                                    fromDate: item.chore.date,
+                                    choreID: item.id
+                                )
+                            }
+                        )
                     }
                 }
                 .listStyle(PlainListStyle())
@@ -137,17 +133,15 @@ struct ChoreRowView: View {
                     .font(.title2)
                     .foregroundColor(chore.completed ? .green : .gray)
             }
-            .buttonStyle(PlainButtonStyle()) // Prevents row highlight on tap
+            .buttonStyle(PlainButtonStyle())
             
             // Chore details
             VStack(alignment: .leading, spacing: 4) {
-                // Chore name with strikethrough if completed
                 Text(chore.name)
                     .font(.headline)
                     .strikethrough(chore.completed, color: .gray)
                     .foregroundColor(chore.completed ? .secondary : .primary)
                 
-                // Date and priority row
                 HStack(spacing: 8) {
                     if !chore.date.isEmpty {
                         Label(chore.date, systemImage: "calendar")
@@ -158,7 +152,6 @@ struct ChoreRowView: View {
                     ChorePriorityBadge(priority: chore.priorityLevel)
                 }
                 
-                // Optional description
                 if !chore.description.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text(chore.description)
                         .font(.caption)
@@ -166,7 +159,6 @@ struct ChoreRowView: View {
                         .lineLimit(2)
                 }
                 
-                // Repetition info if set
                 if chore.repetitionTime != "None" && !chore.repetitionTime.isEmpty {
                     Label(chore.repetitionTime, systemImage: "repeat")
                         .font(.caption2)

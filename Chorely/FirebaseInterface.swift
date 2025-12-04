@@ -220,6 +220,108 @@ class FirebaseInterface {
         } catch {
             print("Error marking complete: \(error)")
         }
+        
+        //added by Milo
+        do {
+            try await recordChore(groupKey: groupKey, choreId: choreId)
+        }
+        catch {
+            print("Error running recordChore: \(error)")
+        }
+    }
+    
+    //This function writes to the log, making an entry that records that the user who is currently logged in completed the chore at the current time, as well as a reference to the user and the chore.
+    //Implemented by Milo on 12/2/25
+    func recordChore(groupKey:String, choreId: String) async throws {
+        //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("error getting userID")
+            return
+        }//Grab the current users uid
+        let userRefStrings = [db.collection("Users").document(userId).documentID]//Get a reference to the currently logged in user's doc & save it as an array
+        let userRefs = userRefStrings.map { id in
+            db.collection("users").document(id)
+        }//convert it to an array of document references
+           
+        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
+        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+           
+        print("Attempting to log the chore...")
+        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
+            data: [
+                "timestamp": Timestamp(date: Date()),
+                "chore": choreRef,
+                "whoDidIt": userRefs,
+            ]
+            ) { err in
+            if let err = err {
+                print("Error logging the chore: \(err)")
+            } else {
+                print("Chore logged successfully!")
+            }
+        }
+    }
+    
+    //Overloaded version of recordChore where uid is given directly
+    func recordChore(groupKey:String, choreId: String, uid: String) async throws {
+        //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+        let userRefStrings = [db.collection("Users").document(uid).documentID]//Get a reference to the given user's doc & save it as an array
+        let userRefs = userRefStrings.map { id in
+            db.collection("users").document(id)
+        }//convert it to an array of document references
+           
+        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
+        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+           
+        print("Attempting to log the chore...")
+        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
+            data: [
+                "timestamp": Timestamp(date: Date()),
+                "chore": choreRef,
+                "whoDidIt": userRefs,
+            ]
+            ) { err in
+            if let err = err {
+                print("Error logging the chore: \(err)")
+            } else {
+                print("Chore logged successfully!")
+            }
+        }
+    }
+    
+    //Similar to recordChore, except we mark the chore as being completed by the user(s) who were assigned to do the chore.
+    func recordChoreDoneByAssigned(groupKey:String, choreId: String) async throws {
+        //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+           
+        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
+        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+        
+        //Grab the usernames from the choreRef
+        guard let userRefNames = try await choreRef.getDocument().get("assignedUsers") else {
+            print("error getting chore doc data")
+            return
+        }
+           
+        print("Attempting to log the chore...")
+        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
+            data: [
+                "timestamp": Timestamp(date: Date()),
+                "chore": choreRef,
+                "whoDidItAsNames": userRefNames,
+                //Because other people's code stores the assigned users into chores as their human name (ie. Milo Guan),
+                //instead of a reference, it is really hard to cross-reference across multiple pages with our current database
+                //structure. This problem is something that we didn't forsee, but it's too deeply entrenched to easily change.
+                //Since our MVP will only need to access user data for the purposes of equity, and the equity page only needs to
+                //access the names of the users (right now), we can get by storing the assigned users as a list of their names.
+                //Our log reading functions will have to have check for either "whoDidIt" or "whoDidItAsNames"
+            ]
+            ) { err in
+            if let err = err {
+                print("Error logging the chore: \(err)")
+            } else {
+                print("Chore logged successfully!")
+            }
+        }
     }
     
     // Generates all future occurrences for a repeating chore
@@ -338,37 +440,6 @@ class FirebaseInterface {
                     completion?(error)
                 }
             }
-    }
-    
-    
-    //This function adds a new chore to the log
-    //Implemented by Milo on 12/2/25
-    func recordChore(groupKey:String, choreId: String) async throws {
-        let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
-        guard let userId = Auth.auth().currentUser?.uid else {
-            print("error getting userID")
-            return
-        }//Grab the current users uid
-        let userRefString = db.collection("Users").document(userId)
-        let userRef = db.document(userRefString.path)//Get a reference to the currently logged in user's doc
-           
-        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
-        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
-           
-        print("Attempting to log the chore...")
-        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
-            data: [
-                "timestamp": Timestamp(date: Date()),
-                "chore": choreRef,
-                "whoDidIt": userRef,
-            ]
-            ) { err in
-            if let err = err {
-                print("Error logging the chore: \(err)")
-            } else {
-                print("Chore logged successfully!")
-            }
-        }
     }
     
     //This may be needed as a helper function for makeLogDoc or other functions
@@ -705,6 +776,3 @@ func voteProposal(groupKey: String, choreId: String, userId: String, approved: B
         completion(true)
     }
 }
-
-
-//To do: Make it so that when joinGroup is run, we add the added user to the Log doc.
