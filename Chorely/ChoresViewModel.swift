@@ -200,7 +200,7 @@ class ChoresViewModel: ObservableObject {
                 assignedUsers: data["assignedUsers"] as? [String] ?? [],
                 completed: data["completed"] as? Bool ?? false,
                 voters: data["voters"] as? [String] ?? [],
-                proposal: data["proposal"] as? Bool ?? false,
+                proposal: (data["proposal"] as? Bool) ?? (data["Proposal"] as? Bool) ?? false,
                 createdBy: data["createdBy"] as? String ?? "",
                 seriesId: data["seriesId"] as? String ?? ""
             )
