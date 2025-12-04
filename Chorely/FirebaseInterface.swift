@@ -40,7 +40,9 @@ struct Chore {
     
     var votes: Int = 0
     var voters: [String]
-    var proposal:  Bool  = false
+    var proposal: Bool = false
+    var createdBy: String = ""
+    var seriesId: String = "" // Links all chores in a repeating series together
 }
 
 
@@ -201,12 +203,7 @@ class FirebaseInterface {
         }
     }
     
-    //Marks a chore as complete, also records who did the chore
-    //userName is for passing down the string of the name of user who did the chore
-    //choreId is the documentation id of the chore and should be just the name of the chore
-    //groupKey is the groupKey of the chore
-    //Implemented by Ron on 11.30.2025
-    //edited by Tian to be able to show which user completed the task
+    // Marks a chore as complete
     func markComplete(userName: String, choreId: String, groupKey: String) async {
         let choreRef = db.collection("chores")
             .document("group")
@@ -223,19 +220,28 @@ class FirebaseInterface {
         } catch {
             print("Error marking complete: \(error)")
         }
+        
+        //added by Milo
+        do {
+            try await recordChore(groupKey: groupKey, choreId: choreId)
+        }
+        catch {
+            print("Error running recordChore: \(error)")
+        }
     }
-    //Also, for repeating chores, we will need to make it so that the chore is marked as "uncomplete" before it's due again.
     
-    //This function adds a new chore to the log
+    //This function writes to the log, making an entry that records that the user who is currently logged in completed the chore at the current time, as well as a reference to the user and the chore.
     //Implemented by Milo on 12/2/25
     func recordChore(groupKey:String, choreId: String) async throws {
-        let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+        //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
         guard let userId = Auth.auth().currentUser?.uid else {
             print("error getting userID")
             return
         }//Grab the current users uid
-        let userRefString = db.collection("Users").document(userId)
-        let userRef = db.document(userRefString.path)//Get a reference to the currently logged in user's doc
+        let userRefStrings = [db.collection("Users").document(userId).documentID]//Get a reference to the currently logged in user's doc & save it as an array
+        let userRefs = userRefStrings.map { id in
+            db.collection("users").document(id)
+        }//convert it to an array of document references
            
         let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
         let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
@@ -245,7 +251,7 @@ class FirebaseInterface {
             data: [
                 "timestamp": Timestamp(date: Date()),
                 "chore": choreRef,
-                "whoDidIt": userRef,
+                "whoDidIt": userRefs,
             ]
             ) { err in
             if let err = err {
@@ -254,6 +260,186 @@ class FirebaseInterface {
                 print("Chore logged successfully!")
             }
         }
+    }
+    
+    //Overloaded version of recordChore where uid is given directly
+    func recordChore(groupKey:String, choreId: String, uid: String) async throws {
+        //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+        let userRefStrings = [db.collection("Users").document(uid).documentID]//Get a reference to the given user's doc & save it as an array
+        let userRefs = userRefStrings.map { id in
+            db.collection("users").document(id)
+        }//convert it to an array of document references
+           
+        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
+        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+           
+        print("Attempting to log the chore...")
+        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
+            data: [
+                "timestamp": Timestamp(date: Date()),
+                "chore": choreRef,
+                "whoDidIt": userRefs,
+            ]
+            ) { err in
+            if let err = err {
+                print("Error logging the chore: \(err)")
+            } else {
+                print("Chore logged successfully!")
+            }
+        }
+    }
+    
+    //Similar to recordChore, except we mark the chore as being completed by the user(s) who were assigned to do the chore.
+    func recordChoreDoneByAssigned(groupKey:String, choreId: String) async throws {
+        //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+           
+        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
+        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+        
+        //Grab the usernames from the choreRef
+        guard let userRefNames = try await choreRef.getDocument().get("assignedUsers") else {
+            print("error getting chore doc data")
+            return
+        }
+           
+        print("Attempting to log the chore...")
+        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
+            data: [
+                "timestamp": Timestamp(date: Date()),
+                "chore": choreRef,
+                "whoDidItAsNames": userRefNames,
+                //Because other people's code stores the assigned users into chores as their human name (ie. Milo Guan),
+                //instead of a reference, it is really hard to cross-reference across multiple pages with our current database
+                //structure. This problem is something that we didn't forsee, but it's too deeply entrenched to easily change.
+                //Since our MVP will only need to access user data for the purposes of equity, and the equity page only needs to
+                //access the names of the users (right now), we can get by storing the assigned users as a list of their names.
+                //Our log reading functions will have to have check for either "whoDidIt" or "whoDidItAsNames"
+            ]
+            ) { err in
+            if let err = err {
+                print("Error logging the chore: \(err)")
+            } else {
+                print("Chore logged successfully!")
+            }
+        }
+    }
+    
+    // Generates all future occurrences for a repeating chore
+    // Creates chores up to 3 months in advance
+    func generateRepetitions(for chore: Chore, groupKey: String, seriesId: String) {
+        guard chore.repetitionTime != "None" && !chore.repetitionTime.isEmpty else { return }
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        guard let startDate = dateFormatter.date(from: chore.date) else {
+            print("Could not parse date: \(chore.date)")
+            return
+        }
+        
+        let calendar = Calendar.current
+        
+        // Generate 1 year of repetitions from the start date
+        let endDate = calendar.date(byAdding: .year, value: 1, to: startDate) ?? startDate
+        
+        var currentDate = startDate
+        var isFirst = true
+        var count = 0
+        
+        while currentDate <= endDate {
+            // Skip the first one since it's already created
+            if !isFirst {
+                let dateStr = dateFormatter.string(from: currentDate)
+                
+                let dayFormatter = DateFormatter()
+                dayFormatter.dateFormat = "EEEE"
+                let dayStr = dayFormatter.string(from: currentDate)
+                
+                let newChore = Chore(
+                    checklist: chore.checklist,
+                    date: dateStr,
+                    day: dayStr,
+                    description: chore.description,
+                    monthlyRepeatByDate: chore.monthlyRepeatByDate,
+                    monthlyRepeatByWeek: chore.monthlyRepeatByWeek,
+                    name: chore.name,
+                    priorityLevel: chore.priorityLevel,
+                    repetitionTime: chore.repetitionTime,
+                    timeLength: chore.timeLength,
+                    assignedUsers: chore.assignedUsers,
+                    completed: false,
+                    voters: [],
+                    proposal: false,
+                    createdBy: chore.createdBy,
+                    seriesId: seriesId
+                )
+                
+                addChore(chore: newChore, groupKey: groupKey)
+                count += 1
+            }
+            isFirst = false
+            
+            // Calculate next date
+            switch chore.repetitionTime.lowercased() {
+            case "daily":
+                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+            case "weekly":
+                currentDate = calendar.date(byAdding: .weekOfYear, value: 1, to: currentDate) ?? currentDate
+            case "monthly":
+                currentDate = calendar.date(byAdding: .month, value: 1, to: currentDate) ?? currentDate
+            case "yearly":
+                currentDate = calendar.date(byAdding: .year, value: 1, to: currentDate) ?? currentDate
+            default:
+                return
+            }
+        }
+        
+        print("Generated \(count) repetitions for \(chore.name) until \(dateFormatter.string(from: endDate))")
+    }
+    
+    // Deletes all future occurrences of a repeating chore series
+    func deleteFutureOccurrences(seriesId: String, fromDate: String, groupKey: String, completion: ((Error?) -> Void)? = nil) {
+        guard !seriesId.isEmpty else {
+            completion?(nil)
+            return
+        }
+        
+        // Query all chores with this seriesId and date >= fromDate
+        db.collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .whereField("seriesId", isEqualTo: seriesId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching series: \(error)")
+                    completion?(error)
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion?(nil)
+                    return
+                }
+                
+                let batch = self.firestore.batch()
+                
+                for doc in documents {
+                    let choreDate = doc.data()["Date"] as? String ?? ""
+                    // Delete if date is >= fromDate
+                    if choreDate >= fromDate {
+                        batch.deleteDocument(doc.reference)
+                    }
+                }
+                
+                batch.commit { error in
+                    if let error = error {
+                        print("Error deleting future occurrences: \(error)")
+                    } else {
+                        print("Deleted future occurrences for series \(seriesId)")
+                    }
+                    completion?(error)
+                }
+            }
     }
     
     //This may be needed as a helper function for makeLogDoc or other functions
@@ -461,8 +647,8 @@ func getChore(documentId: String, groupKey:String, completion: @escaping ([Strin
 func addChore(chore: Chore, groupKey: String){
     db.collection("chores").document("group").collection(groupKey).addDocument(data: [
         "Checklist": chore.checklist,
-        "Date": chore.date,//exact date
-        "Day": chore.day,//day of week
+        "Date": chore.date,
+        "Day": chore.day,
         "Description": chore.description,
         "MonthlyRepeatByDate": chore.monthlyRepeatByDate,
         "MonthlyRepeatByWeek": chore.monthlyRepeatByWeek,
@@ -474,7 +660,9 @@ func addChore(chore: Chore, groupKey: String){
         "completed": chore.completed,
         "votes": chore.votes,
         "voters": chore.voters,
-        "proposal": chore.proposal
+        "proposal": chore.proposal,
+        "createdBy": chore.createdBy,
+        "seriesId": chore.seriesId
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
@@ -487,8 +675,8 @@ func addChore(chore: Chore, groupKey: String){
 func editChore(documentId: String, chore: Chore, groupKey: String, completion: @escaping (Bool) -> Void){
     db.collection("chores").document("group").collection(groupKey).document(documentId).updateData([
         "Checklist": chore.checklist,
-        "Date": chore.date,//exact date
-        "Day": chore.day,//day of week
+        "Date": chore.date,
+        "Day": chore.day,
         "Description": chore.description,
         "MonthlyRepeatByDate": chore.monthlyRepeatByDate,
         "MonthlyRepeatByWeek": chore.monthlyRepeatByWeek,
@@ -500,19 +688,19 @@ func editChore(documentId: String, chore: Chore, groupKey: String, completion: @
         "completed": chore.completed,
         "votes": chore.votes,
         "voters": chore.voters,
-        "proposal": chore.proposal
-    ])  { err in
-        if let  err = err {
-            print("Error editimg chore: \(err)")
+        "proposal": chore.proposal,
+        "createdBy": chore.createdBy,
+        "seriesId": chore.seriesId
+    ]) { err in
+        if let err = err {
+            print("Error editing chore: \(err)")
             completion(false)
             return
         }
         
         print("Chore edited successfully!")
-        
         completion(true)
     }
-    
 }
 
 //userId is the documentId of the user
@@ -588,6 +776,3 @@ func voteProposal(groupKey: String, choreId: String, userId: String, approved: B
         completion(true)
     }
 }
-
-
-//To do: Make it so that when joinGroup is run, we add the added user to the Log doc.

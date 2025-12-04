@@ -64,6 +64,7 @@ struct HomeView: View {
         .padding()
         .navigationTitle("Home")
         .navigationBarTitleDisplayMode(.inline)
+        
         // Approval request alert (for future feature)
         .alert("Approval Request", isPresented: $showApprovalAlert) {
             // APPROVE
@@ -75,12 +76,25 @@ struct HomeView: View {
 
                 var updated = pending.chore
                 updated.proposal = false   // now approved
+                
+                // Generate a series ID for repeating chores
+                let seriesId = updated.repetitionTime != "None" ? UUID().uuidString : ""
+                updated.seriesId = seriesId
 
                 editChore(documentId: pending.id, chore: updated, groupKey: groupKey) { success in
                     if success {
                         // Remove from local pending list
                         if let index = choresViewModel.pendingChores.firstIndex(where: { $0.id == pending.id }) {
                             choresViewModel.pendingChores.remove(at: index)
+                        }
+                        
+                        // Generate future occurrences for repeating chores
+                        if updated.repetitionTime != "None" && !updated.repetitionTime.isEmpty {
+                            FirebaseInterface.shared.generateRepetitions(
+                                for: updated,
+                                groupKey: groupKey,
+                                seriesId: seriesId
+                            )
                         }
                     }
                 }
@@ -190,7 +204,10 @@ struct HomeView: View {
     
     // Navigation buttons to Today's Chores and View Chores
     private var actionButtonsSection: some View {
-        VStack(spacing: 12) {
+        // Filter pending chores to only show ones NOT created by current user
+        let approvableChores = choresViewModel.pendingChores.filter { $0.chore.createdBy != userID }
+        
+        return VStack(spacing: 12) {
             // Today's Chores button - opens DailyTasksView for today
             NavigationLink(destination: DailyTasksView(userID: userID, selectedDate: Date(), viewModel: calendarViewModel)) {
                 ActionButtonLabel(title: "Today's Chores", color: .green)
@@ -200,17 +217,19 @@ struct HomeView: View {
             NavigationLink(destination: ChoresView(userID: userID)) {
                 ActionButtonLabel(title: "View Chores", color: .blue)
             }
-            if !choresViewModel.pendingChores.isEmpty, groupKeyString != nil {
-                        Button {
-                            selectedPendingChore = choresViewModel.pendingChores.first
-                            showApprovalAlert = true
-                        } label: {
-                            ActionButtonLabel(
-                                title: "Pending Approvals (\(choresViewModel.pendingChores.count))",
-                                color: .orange
-                            )
-                        }
-                    }
+            // Only show pending approvals button if there are chores to approve
+            // (excludes chores created by current user)
+            if !approvableChores.isEmpty, groupKeyString != nil {
+                Button {
+                    selectedPendingChore = approvableChores.first
+                    showApprovalAlert = true
+                } label: {
+                    ActionButtonLabel(
+                        title: "Pending Approvals (\(approvableChores.count))",
+                        color: .orange
+                    )
+                }
+            }
             //Button that takes user to chore equity page
             NavigationLink(
                 destination: ChoreEquityView(
@@ -334,12 +353,7 @@ struct ActionButtonLabel: View {
     }
 }
 
-/*#Preview {
-    NavigationStack {
-        HomeView(name: "Test User", groupName: "Test Group", userID: "")
-    }
-}
-*/
+
 //dummy data so preview works
 #Preview {
     NavigationStack {

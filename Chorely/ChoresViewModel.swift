@@ -93,7 +93,7 @@ class ChoresViewModel: ObservableObject {
               let chore = chores[choreID] else { return }
         
         if chore.completed {
-            // Create a Chore object for editing
+            // Unchecking - just update completed to false
             let updatedChore = Chore(
                 checklist: chore.checklist,
                 date: chore.date,
@@ -108,7 +108,9 @@ class ChoresViewModel: ObservableObject {
                 assignedUsers: chore.assignedUsers,
                 completed: false,
                 voters: chore.voters,
-                proposal: chore.proposal
+                proposal: chore.proposal,
+                createdBy: chore.createdBy,
+                seriesId: chore.seriesId
             )
             
             editChore(documentId: choreID, chore: updatedChore, groupKey: groupKey) { success in
@@ -117,6 +119,7 @@ class ChoresViewModel: ObservableObject {
                 }
             }
         } else {
+            // Checking - mark as complete
             Task {
                 await FirebaseInterface.shared.markComplete(
                     userName: currentUserName,
@@ -130,6 +133,21 @@ class ChoresViewModel: ObservableObject {
     func deleteChore(choreID: String) {
         guard let groupKey = groupKey else { return }
         FirebaseInterface.shared.deleteChore(groupKey: groupKey, choreId: choreID)
+    }
+    
+    // Deletes all future occurrences of a repeating chore series
+    func deleteFutureOccurrences(seriesId: String, fromDate: String, choreID: String) {
+        guard let groupKey = groupKey else { return }
+        
+        // First delete the current chore
+        FirebaseInterface.shared.deleteChore(groupKey: groupKey, choreId: choreID)
+        
+        // Then delete all future occurrences
+        FirebaseInterface.shared.deleteFutureOccurrences(
+            seriesId: seriesId,
+            fromDate: fromDate,
+            groupKey: groupKey
+        )
     }
     
     private func setupChoresListener(groupKey: String) {
@@ -182,18 +200,36 @@ class ChoresViewModel: ObservableObject {
                 assignedUsers: data["assignedUsers"] as? [String] ?? [],
                 completed: data["completed"] as? Bool ?? false,
                 voters: data["voters"] as? [String] ?? [],
-                proposal: data["proposal"] as? Bool ?? false
+                proposal: data["proposal"] as? Bool ?? false,
+                createdBy: data["createdBy"] as? String ?? "",
+                seriesId: data["seriesId"] as? String ?? ""
             )
             result[doc.documentID] = chore
         }
         
         return result
     }
-    
+        
     func updateChoreLists(_ choreList: [(id: String, chore: Chore)]) {
-        self.approvedChores = choreList.filter { !$0.chore.proposal }
-        self.pendingChores  = choreList.filter {  $0.chore.proposal }
+        let approved = choreList.filter { !$0.chore.proposal }
+        let pending = choreList.filter { $0.chore.proposal }
         self.roommateStats  = computeRoommateStats(from: choreList)
+        
+        // Sort approved chores: uncompleted first, then by date, then by priority
+        self.approvedChores = approved.sorted { item1, item2 in
+            let chore1 = item1.chore
+            let chore2 = item2.chore
+            
+            if chore1.completed != chore2.completed {
+                return !chore1.completed
+            }
+            if chore1.date != chore2.date {
+                return chore1.date < chore2.date
+            }
+            return priorityRank(chore1.priorityLevel) < priorityRank(chore2.priorityLevel)
+        }
+        
+        self.pendingChores = pending
     }
 
     private func computeRoommateStats(from choreList: [(id: String, chore: Chore)]) -> [RoommateStats] {
@@ -213,6 +249,24 @@ class ChoresViewModel: ObservableObject {
         var stats: [RoommateStats] = []
         
         for (user, total) in totalAssigned {
+            let completed = totalCompleted[user, default: 0]
+            stats.append(
+                RoommateStats(
+                    name: user,
+                    completedCount: completed,
+                    totalAssignedCount: total
+                )
+            )
+        }
+        
+        return stats.sorted { lhs, rhs in
+            if lhs.completedCount != rhs.completedCount {
+                return lhs.completedCount > rhs.completedCount
+            } else {
+                //if equal stats, sort by name
+                return lhs.name < rhs.name
+            }
+        }
             let completed = totalCompleted[user, default: 0]
             stats.append(
                 RoommateStats(

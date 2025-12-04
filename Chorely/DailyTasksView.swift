@@ -254,6 +254,8 @@ private struct TaskCard: View {
     let chore: Chore
     let viewModel: CalendarViewModel
     
+    @State private var showDeleteAlert = false
+    
     // Color for the card border based on priority
     private var priorityColor: Color {
         switch chore.priorityLevel.lowercased() {
@@ -263,10 +265,16 @@ private struct TaskCard: View {
         }
     }
     
+    // Check if this is part of a repeating series
+    private var isRepeating: Bool {
+        !chore.seriesId.isEmpty && chore.repetitionTime != "None"
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             headerRow
             descriptionSection
+            repetitionIndicator
             assigneesSection
         }
         .padding(14)
@@ -281,9 +289,22 @@ private struct TaskCard: View {
         )
         .opacity(chore.completed ? 0.6 : 1.0)
         .accessibilityElement(children: .combine)
+        // Confirmation alert for deleting all future
+        .alert("Delete All Future Occurrences?", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete All", role: .destructive) {
+                viewModel.deleteFutureOccurrences(
+                    seriesId: chore.seriesId,
+                    fromDate: chore.date,
+                    choreID: choreID
+                )
+            }
+        } message: {
+            Text("This will delete this chore and all future occurrences in this series. This cannot be undone.")
+        }
     }
     
-    // Header with name, date, priority, and completion checkbox
+    // Header with name, date, priority, menu, and completion checkbox
     private var headerRow: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
@@ -300,6 +321,28 @@ private struct TaskCard: View {
                 }
             }
             Spacer()
+            
+            // 3-dot menu for delete options
+            Menu {
+                Button(role: .destructive) {
+                    viewModel.deleteChore(choreID: choreID)
+                } label: {
+                    Label("Delete This Occurrence", systemImage: "trash")
+                }
+                
+                if isRepeating {
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Label("Delete All Future Occurrences", systemImage: "trash.fill")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.title3)
+                    .foregroundColor(.gray)
+                    .padding(8)
+            }
             
             // Completion toggle button
             Button {
@@ -323,6 +366,22 @@ private struct TaskCard: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 8)
+            }
+        }
+    }
+    
+    // Shows repetition indicator if this is a repeating chore
+    private var repetitionIndicator: some View {
+        Group {
+            if isRepeating {
+                HStack(spacing: 4) {
+                    Image(systemName: "repeat")
+                        .font(.caption2)
+                    Text(chore.repetitionTime)
+                        .font(.caption2)
+                }
+                .foregroundStyle(.blue)
+                .padding(.vertical, 2)
             }
         }
     }

@@ -193,9 +193,10 @@ class CalendarViewModel: ObservableObject {
                     timeLength: chore.timeLength,
                     assignedUsers: chore.assignedUsers,
                     completed: false,
-                    votes: chore.votes,
                     voters: chore.voters,
-                    proposal: chore.proposal
+                    proposal: chore.proposal,
+                    createdBy: chore.createdBy,
+                    seriesId: chore.seriesId
                 )
                 
                 // Use editChore to update the chore in Firebase
@@ -219,6 +220,30 @@ class CalendarViewModel: ObservableObject {
     func deleteChore(choreID: String) {
         guard let groupKey = groupKey else { return }
         FirebaseInterface.shared.deleteChore(groupKey: groupKey, choreId: choreID)
+    }
+    
+    // Deletes all future occurrences of a repeating chore series
+    func deleteFutureOccurrences(seriesId: String, fromDate: String, choreID: String) {
+        guard let groupKey = groupKey else { return }
+        
+        // First delete the current chore
+        FirebaseInterface.shared.deleteChore(groupKey: groupKey, choreId: choreID)
+        
+        // Then delete all future occurrences
+        FirebaseInterface.shared.deleteFutureOccurrences(
+            seriesId: seriesId,
+            fromDate: fromDate,
+            groupKey: groupKey
+        )
+    }
+    
+    // Returns the priority rank for sorting (high = 0, medium = 1, low = 2)
+    func priorityRank(_ priority: String) -> Int {
+        switch priority.lowercased() {
+        case "high": return 0
+        case "medium": return 1
+        default: return 2
+        }
     }
     
     // Sets up a real-time listener for chores in the user's group
@@ -301,9 +326,10 @@ class CalendarViewModel: ObservableObject {
                 timeLength: data["TimeLength"] as? Int ?? 0,
                 assignedUsers: data["assignedUsers"] as? [String] ?? [],
                 completed: data["completed"] as? Bool ?? false,
-                votes: data["votes"] as? Int ?? 0,
                 voters: data["voters"] as? [String] ?? [],
-                proposal: data["proposal"] as? Bool ?? false
+                proposal: data["proposal"] as? Bool ?? false,
+                createdBy: data["createdBy"] as? String ?? "",
+                seriesId: data["seriesId"] as? String ?? ""
             )
             result[doc.documentID] = chore
         }
@@ -344,16 +370,6 @@ class CalendarViewModel: ObservableObject {
         case "teal": return .teal
         case "indigo": return .indigo
         default: return .green
-        }
-    }
-    
-    // Converts priority string to numeric rank for sorting
-    // Lower number = higher priority (high=0, medium=1, low=2)
-    func priorityRank(_ priority: String) -> Int {
-        switch priority.lowercased() {
-        case "high": return 0
-        case "medium": return 1
-        default: return 2
         }
     }
     
