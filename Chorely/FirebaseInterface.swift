@@ -325,9 +325,9 @@ class FirebaseInterface {
     //Returns all chores for a given user
     //duration 0 = for all time, 1 = for past month, 2 = for past week
     func getLogChoresForUser(uid: String, groupKey:String, duration:Int) async throws -> [String] {
-        let userRef = db.collection("users").document(uid)
+        let userRefPath = db.collection("users").document(uid).path//Forgot to store it as a path
         print("Accessing the chore log...")
-        let snapshot = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments()
+        let snapshot = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRefPath).getDocuments()
         
         return snapshot.documents.compactMap { $0.get("chore") as? String }
     }
