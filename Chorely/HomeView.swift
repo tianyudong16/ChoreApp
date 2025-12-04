@@ -114,8 +114,6 @@ struct HomeView: View {
                     }
             }
 
-            Button("Cancel", role: .cancel) { }
-
         } message: {
             if let chore = selectedPendingChore?.chore {
                     Text("A group member has requested approval for: \"\(chore.name)\". Do you approve?")
