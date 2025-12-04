@@ -111,10 +111,10 @@ class FirebaseInterface {
             print("Error adding document: \(error)")
             throw error // added this line for error handling
         }
-
+        
         return result
     }
-
+    
     //This edits an existing user. Any number of the parameters can be empty
     func editUser(name: String? = nil, email: String? = nil, color: String? = nil, groupKey: Int? = nil, groupName: String? = nil, password: String? = nil, roommatesNames: [String]? = nil) async throws {
         guard let userId = Auth.auth().currentUser?.email else {return}//This ensures the current user is signed in
@@ -153,8 +153,8 @@ class FirebaseInterface {
         userID: String,
         field: String,
         value: Any) async throws {
-        try await db.collection("Users").document(userID).updateData([field: value])
-    }
+            try await db.collection("Users").document(userID).updateData([field: value])
+        }
     
     //A private function to help streamline editUser, it would be too bloated if we had to put this whole block for each thing individually.
     private func editAttribute(attributeName: String, newValue: Any, documentId: String) async throws {
@@ -172,7 +172,7 @@ class FirebaseInterface {
         }
         return//successful case
     }
-
+    
     //Signs in the user using the given name and password
     func signIn(email: String, password: String) async throws -> AuthDataResultModel {
         let authDataResult = try await auth.signIn(withEmail: email, password: password)
@@ -242,10 +242,10 @@ class FirebaseInterface {
         let userRefs = userRefStrings.map { id in
             db.collection("users").document(id)
         }//convert it to an array of document references
-           
+        
         let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
         let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
-           
+        
         print("Attempting to log the chore...")
         db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
             data: [
@@ -253,7 +253,7 @@ class FirebaseInterface {
                 "chore": choreRef,
                 "whoDidIt": userRefs,
             ]
-            ) { err in
+        ) { err in
             if let err = err {
                 print("Error logging the chore: \(err)")
             } else {
@@ -269,10 +269,10 @@ class FirebaseInterface {
         let userRefs = userRefStrings.map { id in
             db.collection("users").document(id)
         }//convert it to an array of document references
-           
+        
         let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
         let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
-           
+        
         print("Attempting to log the chore...")
         db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
             data: [
@@ -280,7 +280,7 @@ class FirebaseInterface {
                 "chore": choreRef,
                 "whoDidIt": userRefs,
             ]
-            ) { err in
+        ) { err in
             if let err = err {
                 print("Error logging the chore: \(err)")
             } else {
@@ -290,39 +290,51 @@ class FirebaseInterface {
     }
     
     //Similar to recordChore, except we mark the chore as being completed by the user(s) who were assigned to do the chore.
-    func recordChoreDoneByAssigned(groupKey:String, choreId: String) async throws {
-        //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
-           
-        let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
-        let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+    //Edit: We should not use this function anymore - it is functionality that isn't in our system requirements, and would be an
+    //unnecessary burden on our other functions
+    /*
+     func recordChoreDoneByAssigned(groupKey:String, choreId: String) async throws {
+     //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
+     
+     let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
+     let choreRef = db.document(choreRefString.path)//Get a reference to the chore's path
+     
+     //Grab the usernames from the choreRef
+     guard let userRefNames = try await choreRef.getDocument().get("assignedUsers") else {
+     print("error getting chore doc data")
+     return
+     }
+     //Convert userRefNames to a list of userRefs
+     
+     print("Attempting to log the chore...")
+     db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
+     data: [
+     "timestamp": Timestamp(date: Date()),
+     "chore": choreRef,
+     "whoDidIt": userRefs,
+     ]
+     ) { err in
+     if let err = err {
+     print("Error logging the chore: \(err)")
+     } else {
+     print("Chore logged successfully!")
+     }
+     }
+     }*/
+    
+    //Returns all chores for a given user
+    //duration 0 = for all time, 1 = for past month, 2 = for past week
+    func getLogChoresForUser(uid: String, groupKey:String, duration:Int) async throws -> [String] {
+        let userRef = db.collection("users").document(uid)
+        print("Accessing the chore log...")
+        let snapshot = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments()
         
-        //Grab the usernames from the choreRef
-        guard let userRefNames = try await choreRef.getDocument().get("assignedUsers") else {
-            print("error getting chore doc data")
-            return
-        }
-           
-        print("Attempting to log the chore...")
-        db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").addDocument(
-            data: [
-                "timestamp": Timestamp(date: Date()),
-                "chore": choreRef,
-                "whoDidItAsNames": userRefNames,
-                //Because other people's code stores the assigned users into chores as their human name (ie. Milo Guan),
-                //instead of a reference, it is really hard to cross-reference across multiple pages with our current database
-                //structure. This problem is something that we didn't forsee, but it's too deeply entrenched to easily change.
-                //Since our MVP will only need to access user data for the purposes of equity, and the equity page only needs to
-                //access the names of the users (right now), we can get by storing the assigned users as a list of their names.
-                //Our log reading functions will have to have check for either "whoDidIt" or "whoDidItAsNames"
-            ]
-            ) { err in
-            if let err = err {
-                print("Error logging the chore: \(err)")
-            } else {
-                print("Chore logged successfully!")
-            }
-        }
+        return snapshot.documents.compactMap { $0.get("chore") as? String }
     }
+    
+    //This will calculate the user's score for chore equity purposes
+    //func calculateScoreForUser(){
+    //}
     
     // Generates all future occurrences for a repeating chore
     // Creates chores up to 3 months in advance
