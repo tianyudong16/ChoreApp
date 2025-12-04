@@ -8,6 +8,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import SwiftUI
 
 @MainActor
 
@@ -16,6 +17,7 @@ struct RoommateStats: Identifiable {
     let name: String
     let completedCount: Int
     let totalAssignedCount: Int
+    let color: Color
     
     var completionRate: Double {
         guard totalAssignedCount > 0 else { return 0 }
@@ -32,19 +34,24 @@ class ChoresViewModel: ObservableObject {
     @Published var approvedChores: [(id: String, chore: Chore)] = []
     @Published var pendingChores:  [(id: String, chore: Chore)] = []
     @Published var roommateStats: [RoommateStats] = []
+    @Published var groupMembers: [GroupMemberData] = []
     
     private var groupKey: String?
     private var groupKeyInt: Int?
     private var currentUserName: String = ""
     private var listener: ListenerRegistration?
+    private var membersListener: ListenerRegistration?
     
     init() {}
     
     func startListening(groupKey: String) {
-            self.groupKey = groupKey
-            self.groupKeyInt = Int(groupKey)
-            setupChoresListener(groupKey: groupKey)
+        self.groupKey = groupKey
+        self.groupKeyInt = Int(groupKey)
+        setupChoresListener(groupKey: groupKey)
+        if let intKey = Int(groupKey) {
+            setupMembersListener(groupKey: intKey)
         }
+    }
     
     var sortedChoreIDs: [String] {
         chores.keys.sorted { id1, id2 in
@@ -80,6 +87,10 @@ class ChoresViewModel: ObservableObject {
                 self.groupKey = key
                 self.groupKeyInt = keys.int
                 self.setupChoresListener(groupKey: key)
+                
+                if let intKey = keys.int {
+                    self.setupMembersListener(groupKey: intKey)
+                }
                 
             } catch {
                 self.errorMessage = "Error loading user: \(error.localizedDescription)"
@@ -229,6 +240,7 @@ class ChoresViewModel: ObservableObject {
         }
         
         self.pendingChores = pending
+        self.roommateStats = computeRoommateStats(from: approved)
     }
     
     private func computeRoommateStats(from choreList: [(id: String, chore: Chore)]) -> [RoommateStats] {
@@ -236,7 +248,6 @@ class ChoresViewModel: ObservableObject {
         var totalCompleted: [String: Int] = [:]
         
         for (_, chore) in choreList {
-            // Count each assigned user
             for user in chore.assignedUsers {
                 totalAssigned[user, default: 0] += 1
                 if chore.completed {
@@ -247,22 +258,39 @@ class ChoresViewModel: ObservableObject {
         
         var stats: [RoommateStats] = []
         
-        for (user, total) in totalAssigned {
-            let completed = totalCompleted[user, default: 0]
+        // Include all group members, even if they have no assigned chores
+        for member in groupMembers {
+            let assigned = totalAssigned[member.name, default: 0]
+            let completed = totalCompleted[member.name, default: 0]
             stats.append(
                 RoommateStats(
-                    name: user,
+                    name: member.name,
                     completedCount: completed,
-                    totalAssignedCount: total
+                    totalAssignedCount: assigned,
+                    color: member.color
                 )
             )
+        }
+        
+        // Also include any users from chores who might not be in groupMembers
+        for (user, total) in totalAssigned {
+            if !groupMembers.contains(where: { $0.name == user }) {
+                let completed = totalCompleted[user, default: 0]
+                stats.append(
+                    RoommateStats(
+                        name: user,
+                        completedCount: completed,
+                        totalAssignedCount: total,
+                        color: .gray
+                    )
+                )
+            }
         }
         
         return stats.sorted { lhs, rhs in
             if lhs.completedCount != rhs.completedCount {
                 return lhs.completedCount > rhs.completedCount
             } else {
-                //if equal stats, sort by name
                 return lhs.name < rhs.name
             }
         }
@@ -276,7 +304,83 @@ class ChoresViewModel: ObservableObject {
         }
     }
     
+    // Sets up listener for group members to get their colors
+    private func setupMembersListener(groupKey: Int) {
+        membersListener?.remove()
+        
+        membersListener = FirebaseInterface.shared.addGroupMembersListener(groupKey: groupKey) { [weak self] documents, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error loading group members: \(error)")
+                    return
+                }
+                
+                guard let documents = documents else {
+                    self.groupMembers = []
+                    return
+                }
+                
+                self.groupMembers = self.readMemberDocuments(documents)
+                
+                // Recompute stats now that we have member colors
+                let choreList = self.chores.map { (id: $0.key, chore: $0.value) }
+                let approved = choreList.filter { !$0.chore.proposal }
+                self.roommateStats = self.computeRoommateStats(from: approved)
+                
+                print("Loaded \(self.groupMembers.count) group members for equity")
+            }
+        }
+    }
+    
+    private func readMemberDocuments(_ documents: [QueryDocumentSnapshot]) -> [GroupMemberData] {
+        return documents.compactMap { doc -> GroupMemberData? in
+            let data = doc.data()
+            guard let name = data["Name"] as? String else { return nil }
+            
+            let colorString = data["color"] as? String ?? "Green"
+            let color = colorFromString(colorString)
+            
+            return GroupMemberData(
+                id: doc.documentID,
+                name: name,
+                color: color
+            )
+        }
+    }
+    
+    private func colorFromString(_ colorName: String) -> Color {
+        switch colorName.lowercased() {
+        case "red": return .red
+        case "blue": return .blue
+        case "green": return .green
+        case "yellow": return .yellow
+        case "orange": return .orange
+        case "purple": return .purple
+        case "pink": return .pink
+        case "cyan": return .cyan
+        case "mint": return .mint
+        case "teal": return .teal
+        case "indigo": return .indigo
+        default: return .green
+        }
+    }
+    
+    // Get color for a user by name
+    func colorForUser(_ userName: String) -> Color {
+        return groupMembers.first(where: { $0.name == userName })?.color ?? .gray
+    }
+    
     deinit {
         listener?.remove()
+        membersListener?.remove()
     }
+}
+
+// Stores group member info for display
+struct GroupMemberData: Identifiable {
+    let id: String
+    let name: String
+    let color: Color
 }
