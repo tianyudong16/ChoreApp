@@ -160,9 +160,10 @@ class CalendarViewModel: ObservableObject {
         var colors: [Color] = []
         
         // Collect unique colors from all assigned users
+        // Note: assignedUsers stores names, not IDs
         for (_, chore) in dayChores {
-            for userID in chore.assignedUsers {
-                if let member = groupMembers.first(where: { $0.id == userID }) {
+            for userName in chore.assignedUsers {
+                if let member = groupMembers.first(where: { $0.name == userName }) {
                     if !colors.contains(member.color) {
                         colors.append(member.color)
                     }
@@ -200,16 +201,20 @@ class CalendarViewModel: ObservableObject {
         return groupMembers.first(where: { $0.id == id })
     }
     
-    // Returns the color associated with a user ID
-    // Falls back to gray if user not found
-    func colorForUser(_ userID: String) -> Color {
-        return getMember(byID: userID)?.color ?? .gray
+    // Finds a group member by their name
+    func getMember(byName name: String) -> GroupMemberInfo? {
+        return groupMembers.first(where: { $0.name == name })
     }
     
-    // Returns the display name for a user ID
-    // Falls back to "Unknown" if user not found
-    func nameForUser(_ userID: String) -> String {
-        return getMember(byID: userID)?.name ?? "Unknown"
+    // Returns the color for a user
+    // Note: assignedUsers stores names, not IDs, so we look up by name
+    func colorForUser(_ userName: String) -> Color {
+        return getMember(byName: userName)?.color ?? .gray
+    }
+    
+    // Returns the display name for a user
+    func nameForUser(_ userName: String) -> String {
+        return getMember(byName: userName)?.name ?? userName
     }
     
     

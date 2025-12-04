@@ -69,6 +69,7 @@ struct ChoresView: View {
                         ChoreRowView(
                             chore: item.chore,
                             choreID: item.id,
+                            viewModel: viewModel,
                             onToggleComplete: {
                                 viewModel.toggleChoreCompletion(choreID: item.id)
                             },
@@ -112,6 +113,7 @@ struct ChoresView: View {
 struct ChoreRowView: View {
     let chore: Chore
     let choreID: String
+    @ObservedObject var viewModel: ChoresViewModel
     let onToggleComplete: () -> Void
     let onDeleteSingle: () -> Void
     let onDeleteFuture: () -> Void
@@ -123,72 +125,105 @@ struct ChoreRowView: View {
         !chore.seriesId.isEmpty && chore.repetitionTime != "None"
     }
     
+    // Get color for the first assigned user
+    private var assigneeColor: Color {
+        if let firstAssignee = chore.assignedUsers.first {
+            return viewModel.colorForUser(firstAssignee)
+        }
+        return .gray
+    }
+    
     var body: some View {
-        HStack(spacing: 12) {
-            // Completion checkbox
-            Button {
-                onToggleComplete()
-            } label: {
-                Image(systemName: chore.completed ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundColor(chore.completed ? .green : .gray)
-            }
-            .buttonStyle(PlainButtonStyle())
+        HStack(spacing: 0) {
+            // Color stripe on the left based on assigned user
+            Rectangle()
+                .fill(assigneeColor)
+                .frame(width: 4)
+                .cornerRadius(2)
             
-            // Chore details
-            VStack(alignment: .leading, spacing: 4) {
-                Text(chore.name)
-                    .font(.headline)
-                    .strikethrough(chore.completed, color: .gray)
-                    .foregroundColor(chore.completed ? .secondary : .primary)
+            HStack(spacing: 12) {
+                // Completion checkbox
+                Button {
+                    onToggleComplete()
+                } label: {
+                    Image(systemName: chore.completed ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundColor(chore.completed ? .green : .gray)
+                }
+                .buttonStyle(PlainButtonStyle())
                 
-                HStack(spacing: 8) {
-                    if !chore.date.isEmpty {
-                        Label(chore.date, systemImage: "calendar")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                // Chore details
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(chore.name)
+                        .font(.headline)
+                        .strikethrough(chore.completed, color: .gray)
+                        .foregroundColor(chore.completed ? .secondary : .primary)
+                    
+                    HStack(spacing: 8) {
+                        if !chore.date.isEmpty {
+                            Label(chore.date, systemImage: "calendar")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        ChorePriorityBadge(priority: chore.priorityLevel)
                     }
                     
-                    ChorePriorityBadge(priority: chore.priorityLevel)
-                }
-                
-                if !chore.description.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Text(chore.description)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
-                
-                if chore.repetitionTime != "None" && !chore.repetitionTime.isEmpty {
-                    Label(chore.repetitionTime, systemImage: "repeat")
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                }
-            }
-            
-            Spacer()
-            
-            // 3-dot menu button
-            Menu {
-                Button(role: .destructive) {
-                    onDeleteSingle()
-                } label: {
-                    Label("Delete This Occurrence", systemImage: "trash")
-                }
-                
-                if isRepeating {
-                    Button(role: .destructive) {
-                        showDeleteFutureAlert = true
-                    } label: {
-                        Label("Delete All Future Occurrences", systemImage: "trash.fill")
+                    if !chore.description.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Text(chore.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
+                    
+                    // Show assignee with their color
+                    if let assignee = chore.assignedUsers.first {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(assigneeColor)
+                                .frame(width: 8, height: 8)
+                            Text(assignee)
+                                .font(.caption)
+                        }
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 6)
+                        .background(assigneeColor.opacity(0.15))
+                        .foregroundColor(assigneeColor)
+                        .clipShape(Capsule())
+                    }
+                    
+                    if chore.repetitionTime != "None" && !chore.repetitionTime.isEmpty {
+                        Label(chore.repetitionTime, systemImage: "repeat")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
                     }
                 }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.title3)
-                    .foregroundColor(.gray)
-                    .padding(8)
+                
+                Spacer()
+                
+                // 3-dot menu button
+                Menu {
+                    Button(role: .destructive) {
+                        onDeleteSingle()
+                    } label: {
+                        Label("Delete This Occurrence", systemImage: "trash")
+                    }
+                    
+                    if isRepeating {
+                        Button(role: .destructive) {
+                            showDeleteFutureAlert = true
+                        } label: {
+                            Label("Delete All Future Occurrences", systemImage: "trash.fill")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.title3)
+                        .foregroundColor(.gray)
+                        .padding(8)
+                }
             }
+            .padding(.leading, 8)
         }
         .padding(.vertical, 8)
         .opacity(chore.completed ? 0.6 : 1.0)

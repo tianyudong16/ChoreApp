@@ -275,14 +275,30 @@ private struct TaskCard: View {
         !chore.seriesId.isEmpty && chore.repetitionTime != "None"
     }
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            headerRow
-            descriptionSection
-            repetitionIndicator
-            assigneesSection
+    // Get the color for the assigned user
+    private var assigneeColor: Color {
+        if let firstAssignee = chore.assignedUsers.first {
+            return viewModel.colorForUser(firstAssignee)
         }
-        .padding(14)
+        return .gray
+    }
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Color stripe on the left based on assigned user
+            Rectangle()
+                .fill(assigneeColor)
+                .frame(width: 4)
+                .cornerRadius(2)
+            
+            VStack(alignment: .leading, spacing: 10) {
+                headerRow
+                descriptionSection
+                repetitionIndicator
+                assigneesSection
+            }
+            .padding(14)
+        }
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(.background)
@@ -290,7 +306,7 @@ private struct TaskCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(priorityColor.opacity(0.45), lineWidth: 1)
+                .strokeBorder(assigneeColor.opacity(0.45), lineWidth: 1)
         )
         .opacity(chore.completed ? 0.6 : 1.0)
         .accessibilityElement(children: .combine)
@@ -391,22 +407,28 @@ private struct TaskCard: View {
         }
     }
     
-    // Shows assigned users or "Unassigned" label
+    // Shows assigned users or "Unassigned" label with user's color
     private var assigneesSection: some View {
         Group {
             if let assignee = chore.assignedUsers.first {
+                let userColor = viewModel.colorForUser(assignee)
                 HStack {
                     Text("Assigned to:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     
-                    Text(assignee)
-                        .font(.caption)
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 8)
-                        .background(Color.accentColor.opacity(0.15))
-                        .foregroundStyle(Color.accentColor)
-                        .clipShape(Capsule())
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(userColor)
+                            .frame(width: 8, height: 8)
+                        Text(assignee)
+                            .font(.caption)
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .background(userColor.opacity(0.15))
+                    .foregroundStyle(userColor)
+                    .clipShape(Capsule())
                     
                     Spacer()
                 }
