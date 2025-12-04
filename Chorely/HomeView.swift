@@ -52,6 +52,7 @@ struct HomeView: View {
     @State private var groupMembers: [GroupMember] = [] // List of group members
     @State private var isLoadingMembers = true        // Shows loading indicator
     @State private var groupKeyString: String? //keeps group key so chores can be deleted/edited
+    @State private var showDetailsSheet = false //controls details on pending chore visibility
     
     var body: some View {
         VStack {
@@ -67,6 +68,11 @@ struct HomeView: View {
         
         // Approval request alert (for future feature)
         .alert("Approval Request", isPresented: $showApprovalAlert) {
+            //show details
+            Button("Show Details") {
+                    showDetailsSheet = true
+                }
+            
             // APPROVE
             Button("Approve") {
                 guard
@@ -113,6 +119,7 @@ struct HomeView: View {
                         }
                     }
             }
+            Button("Close", role: .cancel) { }
 
         } message: {
             if let chore = selectedPendingChore?.chore {
@@ -120,6 +127,16 @@ struct HomeView: View {
                 } else {
                     Text("No chore selected.")
                 }
+        }
+        //shows sheet with more details about the chore
+        .sheet(isPresented: $showDetailsSheet) {
+            if let pending = selectedPendingChore {
+                PendingChoreDetailsView(
+                    chore: pending.chore,
+                    proposer: proposerName(for: pending.chore),
+                    assignee: pending.chore.assignedUsers.first
+                )
+            }
         }
         .onAppear {
             // Load group members and calendar data when view appears
@@ -290,6 +307,14 @@ struct HomeView: View {
                 }
             }
         }
+    }
+    
+    private func proposerName(for chore: Chore) -> String {
+        //find name from groupMembers
+        if let member = groupMembers.first(where: { $0.id == chore.createdBy }) {
+            return member.name
+        }
+        return "Someone"
     }
     
     // Converts Firestore documents into GroupMember objects

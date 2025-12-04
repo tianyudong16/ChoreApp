@@ -252,6 +252,8 @@ struct DonutProgressView: View {
     }
 }
 
+
+
 #Preview {
     // Just for the preview
     let vm = ChoresViewModel()
