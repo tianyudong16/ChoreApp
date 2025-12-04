@@ -261,12 +261,15 @@ class CalendarViewModel: ObservableObject {
         var created = 0
         
         for chore in chores.values {
-            // consider it "mine" if it has my id OR my name
+            // mine?
             let isMine =
                 chore.assignedUsers.contains(currentUserID) ||
                 chore.assignedUsers.contains(currentUserName)
-            
             guard isMine else { continue }
+            
+            // skip completed chores
+            guard !chore.completed else { continue }
+            
             guard let day = dateFormatter.date(from: chore.date) else { continue }
             
             let event = EKEvent(eventStore: eventStore)
@@ -279,6 +282,67 @@ class CalendarViewModel: ObservableObject {
             event.isAllDay = true
             event.startDate = day
             event.endDate = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day
+            
+            // Set recurrence based on chore repetition settings
+            var rules: [EKRecurrenceRule] = []
+            
+            switch chore.repetitionTime {
+            case "Daily":
+                rules = [
+                    EKRecurrenceRule(
+                        recurrenceWith: .daily,
+                        interval: 1,
+                        end: nil
+                    )
+                ]
+                
+            case "Weekly":
+                rules = [
+                    EKRecurrenceRule(
+                        recurrenceWith: .weekly,
+                        interval: 1,
+                        end: nil
+                    )
+                ]
+                
+            case "Biweekly", "Every 2 weeks":
+                rules = [
+                    EKRecurrenceRule(
+                        recurrenceWith: .weekly,
+                        interval: 2,
+                        end: nil
+                    )
+                ]
+                
+            case "Monthly":
+                // If your UI says repeat by date (3rd, 15th, etc)
+                if chore.monthlyRepeatByDate {
+                    rules = [
+                        EKRecurrenceRule(
+                            recurrenceWith: .monthly,
+                            interval: 1,
+                            end: nil
+                        )
+                    ]
+                } else if !chore.monthlyRepeatByWeek.trimmingCharacters(in: .whitespaces).isEmpty {
+                    // You can get fancy here later, for now treat it as monthly
+                    rules = [
+                        EKRecurrenceRule(
+                            recurrenceWith: .monthly,
+                            interval: 1,
+                            end: nil
+                        )
+                    ]
+                }
+                
+            default:
+                break      // "None" or anything else → no repeat
+            }
+            
+            if !rules.isEmpty {
+                event.recurrenceRules = rules
+            }
+
             
             event.calendar = eventStore.defaultCalendarForNewEvents
             
