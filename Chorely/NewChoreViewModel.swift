@@ -19,6 +19,8 @@ class NewChoreViewModel: ObservableObject {
     @Published var dueDate = Date()        // When the chore is due
     @Published var priorityLevel = "low"   // Priority: low/medium/high
     @Published var repetitionTime = "None" // Repeat: None/Daily/Weekly/Monthly/Yearly
+    @Published var groupMembers: [String] = []   //List of roommate names
+    @Published var assignedUser: String? = nil //Selected roommate name
     
     // UI state
     @Published var showAlert = false       // Shows error alert
@@ -26,11 +28,14 @@ class NewChoreViewModel: ObservableObject {
     
     // User's group key (needed to save chore to correct group)
     private var groupKey: String?
+    private var groupKeyInt: Int?
     
     init() {
         // Automatically fetch group key when ViewModel is created
         fetchGroupKey()
     }
+    
+
     
     // Fetches the current user's group key from Firebase
     private func fetchGroupKey() {
@@ -53,9 +58,12 @@ class NewChoreViewModel: ObservableObject {
                 
                 await MainActor.run {
                     self.groupKey = keys.string
+                    self.groupKeyInt = keys.int
                     self.isLoading = false
                     print("GROUP KEY LOADED: \(keys.string ?? "NIL")")
+                    
                 }
+                self.loadGroupMembers()
             } catch {
                 await MainActor.run {
                     self.isLoading = false
@@ -65,19 +73,54 @@ class NewChoreViewModel: ObservableObject {
             }
         }
     }
+    //loads group members to select someone to assign to the chore
+    private func loadGroupMembers() {
+            guard let keyInt = self.groupKeyInt else {
+                print("groupKeyInt is nil, cannot load members")
+                self.isLoading = false
+                return
+            }
+            
+            print("Fetching group members for groupKeyInt = \(keyInt)")
+            
+            FirebaseInterface.shared.fetchGroupMembers(groupKey: keyInt) { documents, error in
+                DispatchQueue.main.async {
+                    defer { self.isLoading = false }
+                    
+                    if let error = error {
+                        print("Error fetching members: \(error)")
+                        return
+                    }
+                    
+                    guard let documents = documents else {
+                        print("No member documents found")
+                        return
+                    }
+                    
+                    self.groupMembers = documents.compactMap { doc in
+                        let data = doc.data()
+                        return (data["name"] as? String) ?? (data["Name"] as? String)
+                    }
+                    
+                    print("Loaded group members: \(self.groupMembers)")
+                }
+            }
+        }
+        
     
     // Validates if the form can be saved
     // Requires: non-empty title, not loading, and valid group key
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !isLoading &&
-        groupKey != nil
+        groupKey != nil &&
+        assignedUser != nil
     }
     
     // Saves the new chore to Firebase
     func save() {
         // Validate before saving
-        guard canSave, let groupKey = groupKey else {
+        guard canSave, let groupKey = groupKey, let assignee = assignedUser else {
             showAlert = true
             return
         }
@@ -103,7 +146,7 @@ class NewChoreViewModel: ObservableObject {
             priorityLevel: priorityLevel,
             repetitionTime: repetitionTime,
             timeLength: 30, // Default 30 minutes
-            assignedUsers: [], // No assignees initially
+            assignedUsers: [assignee], //roommate chore is assigned to
             completed: false,
             votes: 0,
             voters: [],
@@ -122,5 +165,6 @@ class NewChoreViewModel: ObservableObject {
         title = ""
         description = ""
         dueDate = Date()
+        assignedUser = nil
     }
 }

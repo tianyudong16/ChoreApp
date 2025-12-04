@@ -211,6 +211,15 @@ struct HomeView: View {
                             )
                         }
                     }
+            //Button that takes user to chore equity page
+            NavigationLink(
+                destination: ChoreEquityView(
+                    viewModel: choresViewModel,
+                    userName: name
+                )
+            ) {
+                ActionButtonLabel(title: "Chore Equity", color: .purple)
+            }
         }
         .padding(.horizontal)
     }

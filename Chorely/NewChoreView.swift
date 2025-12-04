@@ -58,7 +58,24 @@ struct NewChoreView: View {
                     }
                     .pickerStyle(.menu)
                 }
-                .padding(.bottom, 60)
+                
+                //Assigns the new chore to a group member
+                Section(header: Text("Assign To")) {
+                    if viewModel.isLoading {
+                        Text("Loading group members…")
+                            .foregroundColor(.secondary)
+                            .italic()
+                    } else if viewModel.groupMembers.isEmpty {
+                        Text("No group members found")
+                            .foregroundColor(.secondary)
+                    } else {
+                        Picker("Roommate", selection: $viewModel.assignedUser) {
+                                ForEach(viewModel.groupMembers, id: \.self) { name in Text(name).tag(Optional(name))
+                            }
+                        }
+                    }
+                }
+                .padding(.bottom, 40)
                 
                 // Show loading state or save button
                 if viewModel.isLoading {

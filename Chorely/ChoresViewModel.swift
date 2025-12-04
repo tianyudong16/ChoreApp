@@ -10,6 +10,19 @@ import FirebaseFirestore
 import FirebaseAuth
 
 @MainActor
+
+struct RoommateStats: Identifiable {
+    let id = UUID()
+    let name: String
+    let completedCount: Int
+    let totalAssignedCount: Int
+    
+    var completionRate: Double {
+        guard totalAssignedCount > 0 else { return 0 }
+        return Double(completedCount) / Double(totalAssignedCount)
+    }
+}
+
 class ChoresViewModel: ObservableObject {
     
     @Published var showingNewChoreView = false
@@ -18,6 +31,7 @@ class ChoresViewModel: ObservableObject {
     @Published var errorMessage = ""
     @Published var approvedChores: [(id: String, chore: Chore)] = []
     @Published var pendingChores:  [(id: String, chore: Chore)] = []
+    @Published var roommateStats: [RoommateStats] = []
     
     private var groupKey: String?
     private var groupKeyInt: Int?
@@ -179,6 +193,44 @@ class ChoresViewModel: ObservableObject {
     func updateChoreLists(_ choreList: [(id: String, chore: Chore)]) {
         self.approvedChores = choreList.filter { !$0.chore.proposal }
         self.pendingChores  = choreList.filter {  $0.chore.proposal }
+        self.roommateStats  = computeRoommateStats(from: choreList)
+    }
+
+    private func computeRoommateStats(from choreList: [(id: String, chore: Chore)]) -> [RoommateStats] {
+        var totalAssigned: [String: Int] = [:]
+        var totalCompleted: [String: Int] = [:]
+        
+        for (_, chore) in choreList {
+            // Count each assigned user
+            for user in chore.assignedUsers {
+                totalAssigned[user, default: 0] += 1
+                if chore.completed {
+                    totalCompleted[user, default: 0] += 1
+                }
+            }
+        }
+        
+        var stats: [RoommateStats] = []
+        
+        for (user, total) in totalAssigned {
+            let completed = totalCompleted[user, default: 0]
+            stats.append(
+                RoommateStats(
+                    name: user,
+                    completedCount: completed,
+                    totalAssignedCount: total
+                )
+            )
+        }
+        
+        return stats.sorted { lhs, rhs in
+            if lhs.completedCount != rhs.completedCount {
+                return lhs.completedCount > rhs.completedCount
+            } else {
+                //if equal stats, sort by name
+                return lhs.name < rhs.name
+            }
+        }
     }
     
     private func priorityRank(_ priority: String) -> Int {
