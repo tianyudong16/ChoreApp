@@ -4,6 +4,7 @@
 //
 //  Created by Brooke Tanner on 11/11/25.
 //
+// I (Brooke) updated this on 12/4 to remove showing the date of each chore because I thought it was uneccessary since it only shows chores due on the current day and replaced it with time length and changed sort by due date to sort by time length because we don't store a time a chore is due
 
 import SwiftUI
 
@@ -19,7 +20,7 @@ struct DailyTasksView: View {
     
     // Local state for filtering and sorting
     @State private var selectedFilter: TaskFilter = .all // Filter: House/Mine/Roommates
-    @State private var sort: SortFilter = .due           // Sort: Priority/Completion/Due Date
+    @State private var sort: SortFilter = .timeLength           // Sort: Priority/Completion/Due Date
     
     // Environment for dismissing the view
     @Environment(\.dismiss) private var dismiss
@@ -61,8 +62,8 @@ struct DailyTasksView: View {
             return dayChores.sorted { viewModel.priorityRank($0.chore.priorityLevel) < viewModel.priorityRank($1.chore.priorityLevel) }
         case .completion:
             return dayChores.sorted { !$0.chore.completed && $1.chore.completed }
-        case .due:
-            return dayChores.sorted { $0.chore.date < $1.chore.date }
+        case .timeLength:
+            return dayChores.sorted { $0.chore.timeLength < $1.chore.timeLength }
         }
     }
     
@@ -201,7 +202,7 @@ enum TaskFilter: String, CaseIterable, Identifiable {
 enum SortFilter: String, CaseIterable, Identifiable {
     case priorityLevel = "Priority Level"
     case completion = "Completion"
-    case due = "Due Date"
+    case timeLength = "Time Length"
     var id: String { self.rawValue }
 }
 
@@ -334,11 +335,15 @@ private struct TaskCard: View {
                     .strikethrough(chore.completed, color: .gray)
                     .foregroundColor(chore.completed ? .secondary : .primary)
                 
-                HStack(spacing: 8) {
-                    Label(chore.date, systemImage: "calendar.badge.clock")
+                //now it shows duration of chore instead of the day it's due
+                HStack(spacing: 4) {
+                    Image(systemName: "clock")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    PriorityTag(priority: chore.priorityLevel)
+
+                    Text("\(chore.timeLength) min")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             Spacer()

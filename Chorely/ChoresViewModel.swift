@@ -226,21 +226,56 @@ class ChoresViewModel: ObservableObject {
         let pending = choreList.filter { $0.chore.proposal }
         
         // Sort approved chores: uncompleted first, then by date, then by priority
-        self.approvedChores = approved.sorted { item1, item2 in
-            let chore1 = item1.chore
-            let chore2 = item2.chore
-            
-            if chore1.completed != chore2.completed {
-                return !chore1.completed
-            }
-            if chore1.date != chore2.date {
-                return chore1.date < chore2.date
-            }
-            return priorityRank(chore1.priorityLevel) < priorityRank(chore2.priorityLevel)
+        let upcoming = nextUpcomingOccurrences(approved)
+        self.approvedChores = upcoming.sorted { item1, item2 in
+            let c1 = item1.chore
+            let c2 = item2.chore
+
+            if c1.completed != c2.completed { return !c1.completed }
+            if c1.date != c2.date { return c1.date < c2.date }
+            return priorityRank(c1.priorityLevel) < priorityRank(c2.priorityLevel)
         }
         
         self.pendingChores = pending
         self.roommateStats = computeRoommateStats(from: approved)
+    }
+    
+    func nextUpcomingOccurrences(_ chores: [(id: String, chore: Chore)]) -> [(id: String, chore: Chore)] {
+        //group by seriesId (empty string = non repeating, keep all)
+        let grouped = Dictionary(grouping: chores, by: { $0.chore.seriesId })
+
+        var result: [(id: String, chore: Chore)] = []
+        let today = Date()
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        for (_, occurrences) in grouped {
+            guard let seriesId = occurrences.first?.chore.seriesId,
+                  !seriesId.isEmpty
+            else {
+                result.append(contentsOf: occurrences)
+                continue
+            }
+
+            //convert to date objects
+            let parsed = occurrences.compactMap { item -> (String, Chore, Date)? in
+                if let date = formatter.date(from: item.chore.date) {
+                    return (item.id, item.chore, date)
+                }
+                return nil
+            }
+
+            //sort by date
+            let sorted = parsed.sorted(by: { $0.2 < $1.2 })
+
+            //pick first date >= today
+            if let next = sorted.first(where: { $0.2 >= today }) {
+                result.append((id: next.0, chore: next.1))
+            }
+        }
+
+        return result
     }
     
     private func computeRoommateStats(from choreList: [(id: String, chore: Chore)]) -> [RoommateStats] {

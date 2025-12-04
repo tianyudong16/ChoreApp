@@ -28,6 +28,7 @@ class NewChoreViewModel: ObservableObject {
     @Published var priorityLevel = "low"   // Priority: low/medium/high
     @Published var repetitionTime = "None" // Repeat: None/Daily/Weekly/Monthly/Yearly
     @Published var selectedAssignee: String? = nil // Selected user to assign chore to
+    @Published var timeLength: Int = 30 //chore duration
     
     // Group members for assignment picker
     @Published var groupMembers: [AssignableMember] = []
@@ -176,7 +177,7 @@ class NewChoreViewModel: ObservableObject {
             name: title,
             priorityLevel: priorityLevel,
             repetitionTime: repetitionTime,
-            timeLength: 30,
+            timeLength: timeLength, //saves user input
             assignedUsers: assignedUsers,
             completed: false,
             voters: [],

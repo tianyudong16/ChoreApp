@@ -13,6 +13,7 @@ struct ChoresView: View {
     
     // ViewModel handles data fetching and business logic
     @StateObject private var viewModel: ChoresViewModel
+    @State private var showingNewChore = false
     
     // User ID for Firebase queries
     private let userID: String
@@ -93,14 +94,14 @@ struct ChoresView: View {
         // Plus button in toolbar to add new chore
         .toolbar {
             Button {
-                viewModel.showingNewChoreView = true
+                showingNewChore = true
             } label: {
                 Image(systemName: "plus")
             }
         }
-        // Sheet for creating new chore
-        .sheet(isPresented: $viewModel.showingNewChoreView) {
-            NewChoreView(newChorePresented: $viewModel.showingNewChoreView)
+
+        .sheet(isPresented: $showingNewChore) {
+            NewChoreView(newChorePresented: $showingNewChore)
         }
         // Load chores when view appears
         .onAppear {
@@ -266,6 +267,7 @@ struct ChorePriorityBadge: View {
 
 #Preview {
     NavigationStack {
-        ChoresView(userID: "")
+        //need this so it doesn't crash
+        ChoresView(userID: "PREVIEW_USER_ID")
     }
 }

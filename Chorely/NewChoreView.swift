@@ -18,6 +18,17 @@ struct NewChoreView: View {
     
     var body: some View {
         VStack {
+            //cancel button at the top to cancel adding chore
+            HStack {
+                Button("Cancel") {
+                    newChorePresented = false
+                }
+                .foregroundColor(.red)
+                
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.top, 10)
             // Title
             Text("New Chore")
                 .bold()
@@ -57,6 +68,18 @@ struct NewChoreView: View {
                         Text("Yearly").tag("Yearly")
                     }
                     .pickerStyle(.menu)
+                }
+                
+                //select how long a chore takes - we had it default to 30 min before but this lets the user choose
+                Section(header: Text("Time Length")) {
+                    Picker("Duration", selection: $viewModel.timeLength) {
+                        Text("5 minutes").tag(5)
+                        Text("10 minutes").tag(10)
+                        Text("15 minutes").tag(15)
+                        Text("30 minutes").tag(30)
+                        Text("45 minutes").tag(45)
+                        Text("1 hour").tag(60)
+                    }
                 }
                 
                 // Assign to group member section
