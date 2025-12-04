@@ -46,7 +46,7 @@ struct ChoresView: View {
                 .padding()
                 Spacer()
                 
-            } else if viewModel.approvedChores.isEmpty {
+            } else if viewModel.chores.isEmpty {
                 // Empty state - no chores yet
                 Spacer()
                 VStack(spacing: 12) {
@@ -63,21 +63,29 @@ struct ChoresView: View {
                 Spacer()
                 
             } else {
-                // Data state - show list of approved chores only
+                // Data state - show list of chores
                 List {
-                    ForEach(viewModel.approvedChores, id: \.id) { item in
-                        // Display each chore row
-                        ChoreRowView(chore: item.chore, choreID: item.id) {
-                            // Toggle completion when checkbox tapped
-                            viewModel.toggleChoreCompletion(choreID: item.id)
-                        }
-                        // Swipe left to delete
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                viewModel.deleteChore(choreID: item.id)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    // Iterate through sorted chore IDs
+                    ForEach(viewModel.sortedChoreIDs, id: \.self) { choreID in
+                        if let chore = viewModel.chores[choreID] {
+                            // Display each chore row
+                            ChoreRowView(
+                                chore: chore,
+                                choreID: choreID,
+                                onToggleComplete: {
+                                    viewModel.toggleChoreCompletion(choreID: choreID)
+                                },
+                                onDeleteSingle: {
+                                    viewModel.deleteChore(choreID: choreID)
+                                },
+                                onDeleteFuture: {
+                                    viewModel.deleteFutureOccurrences(
+                                        seriesId: chore.seriesId,
+                                        fromDate: chore.date,
+                                        choreID: choreID
+                                    )
+                                }
+                            )
                         }
                     }
                 }
@@ -106,9 +114,18 @@ struct ChoresView: View {
 
 // Single row in the chores list displaying one chore
 struct ChoreRowView: View {
-    let chore: Chore              // The chore to display
-    let choreID: String           // Document ID for updates
-    let onToggleComplete: () -> Void // Callback when checkbox tapped
+    let chore: Chore
+    let choreID: String
+    let onToggleComplete: () -> Void
+    let onDeleteSingle: () -> Void
+    let onDeleteFuture: () -> Void
+    
+    @State private var showDeleteFutureAlert = false
+    
+    // Check if this is part of a repeating series
+    private var isRepeating: Bool {
+        !chore.seriesId.isEmpty && chore.repetitionTime != "None"
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -158,9 +175,40 @@ struct ChoreRowView: View {
             }
             
             Spacer()
+            
+            // 3-dot menu button
+            Menu {
+                Button(role: .destructive) {
+                    onDeleteSingle()
+                } label: {
+                    Label("Delete This Occurrence", systemImage: "trash")
+                }
+                
+                if isRepeating {
+                    Button(role: .destructive) {
+                        showDeleteFutureAlert = true
+                    } label: {
+                        Label("Delete All Future Occurrences", systemImage: "trash.fill")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.title3)
+                    .foregroundColor(.gray)
+                    .padding(8)
+            }
         }
         .padding(.vertical, 8)
-        .opacity(chore.completed ? 0.6 : 1.0) // Fade completed chores
+        .opacity(chore.completed ? 0.6 : 1.0)
+        // Confirmation alert for deleting all future
+        .alert("Delete All Future Occurrences?", isPresented: $showDeleteFutureAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete All", role: .destructive) {
+                onDeleteFuture()
+            }
+        } message: {
+            Text("This will delete this chore and all future occurrences in this series. This cannot be undone.")
+        }
     }
 }
 

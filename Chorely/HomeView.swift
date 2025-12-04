@@ -76,12 +76,25 @@ struct HomeView: View {
 
                 var updated = pending.chore
                 updated.proposal = false   // now approved
+                
+                // Generate a series ID for repeating chores
+                let seriesId = updated.repetitionTime != "None" ? UUID().uuidString : ""
+                updated.seriesId = seriesId
 
                 editChore(documentId: pending.id, chore: updated, groupKey: groupKey) { success in
                     if success {
                         // Remove from local pending list
                         if let index = choresViewModel.pendingChores.firstIndex(where: { $0.id == pending.id }) {
                             choresViewModel.pendingChores.remove(at: index)
+                        }
+                        
+                        // Generate future occurrences for repeating chores
+                        if updated.repetitionTime != "None" && !updated.repetitionTime.isEmpty {
+                            FirebaseInterface.shared.generateRepetitions(
+                                for: updated,
+                                groupKey: groupKey,
+                                seriesId: seriesId
+                            )
                         }
                     }
                 }

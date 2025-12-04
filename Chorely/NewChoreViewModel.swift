@@ -81,7 +81,6 @@ class NewChoreViewModel: ObservableObject {
     }
     
     // Counts how many users are in the group
-    // added to handle the base case (if only 1 group member exists in a group, then no need for pending approvals)
     private func countGroupMembers(groupKey: Int) async throws -> Int {
         let snapshot = try await FirebaseInterface.shared.firestore
             .collection("Users")
@@ -107,18 +106,20 @@ class NewChoreViewModel: ObservableObject {
             return
         }
         
-        // Format the due date as "yyyy-MM-dd" string
+        // Format the due date
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateStr = dateFormatter.string(from: dueDate)
         
-        // Get the day of week (e.g., "Monday")
         dateFormatter.dateFormat = "EEEE"
         let dayStr = dateFormatter.string(from: dueDate)
         
         // If only 1 user in group, auto-approve (proposal = false)
         // Otherwise, set as pending (proposal = true)
         let needsApproval = groupMemberCount > 1
+        
+        // Generate a unique series ID for repeating chores
+        let seriesId = repetitionTime != "None" ? UUID().uuidString : ""
         
         let newChore = Chore(
             checklist: false,
@@ -130,23 +131,27 @@ class NewChoreViewModel: ObservableObject {
             name: title,
             priorityLevel: priorityLevel,
             repetitionTime: repetitionTime,
-            timeLength: 30, // Default 30 minutes
-            assignedUsers: [], // No assignees initially
+            timeLength: 30,
+            assignedUsers: [],
             completed: false,
-            votes: 0,
             voters: [],
             proposal: needsApproval,
-            createdBy: userID  // Track who created this chore
+            createdBy: userID,
+            seriesId: seriesId
         )
         
-        // Save using pre-existing addChore function
+        // Add the first chore
         addChore(chore: newChore, groupKey: groupKey)
         
-        // Reset the form for next use
+        // If it's a repeating chore and auto-approved, generate future occurrences
+        // For pending chores, repetitions will be generated after approval
+        if !needsApproval && repetitionTime != "None" {
+            FirebaseInterface.shared.generateRepetitions(for: newChore, groupKey: groupKey, seriesId: seriesId)
+        }
+        
         resetForm()
     }
     
-    // Clears the form fields
     private func resetForm() {
         title = ""
         description = ""

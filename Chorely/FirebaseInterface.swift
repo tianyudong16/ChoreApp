@@ -41,7 +41,8 @@ struct Chore {
     var votes: Int = 0
     var voters: [String]
     var proposal: Bool = false
-    var createdBy: String = "" // User ID of who created this chore
+    var createdBy: String = ""
+    var seriesId: String = "" // Links all chores in a repeating series together
 }
 
 
@@ -202,8 +203,7 @@ class FirebaseInterface {
         }
     }
     
-    // Marks a chore as complete and handles repetition
-    // If the chore has a repetition setting, creates the next occurrence
+    // Marks a chore as complete
     func markComplete(userName: String, choreId: String, groupKey: String) async {
         let choreRef = db.collection("chores")
             .document("group")
@@ -211,95 +211,133 @@ class FirebaseInterface {
             .document(choreId)
         
         do {
-            // First, get the current chore data to check for repetition
-            let snapshot = try await choreRef.getDocument()
-            guard let data = snapshot.data() else {
-                print("Chore not found: \(choreId)")
-                return
-            }
-            
-            // Mark the current chore as complete
             try await choreRef.updateData([
                 "completed": true,
                 "completedBy": userName,
                 "completedAt": Date().timeIntervalSince1970
             ])
             print("Chore \(choreId) marked complete by \(userName)")
-            
-            // Check if this is a repeating chore
-            let repetitionTime = data["RepetitionTime"] as? String ?? "None"
-            if repetitionTime != "None" && !repetitionTime.isEmpty {
-                // Create the next occurrence
-                createNextRepetition(from: data, groupKey: groupKey, repetitionTime: repetitionTime)
-            }
-            
         } catch {
             print("Error marking complete: \(error)")
         }
     }
     
-    // Creates the next occurrence of a repeating chore
-    private func createNextRepetition(from choreData: [String: Any], groupKey: String, repetitionTime: String) {
-        // Parse the current date
-        guard let currentDateStr = choreData["Date"] as? String else { return }
+    // Generates all future occurrences for a repeating chore
+    // Creates chores up to 3 months in advance
+    func generateRepetitions(for chore: Chore, groupKey: String, seriesId: String) {
+        guard chore.repetitionTime != "None" && !chore.repetitionTime.isEmpty else { return }
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         
-        guard let currentDate = dateFormatter.date(from: currentDateStr) else {
-            print("Could not parse date: \(currentDateStr)")
+        guard let startDate = dateFormatter.date(from: chore.date) else {
+            print("Could not parse date: \(chore.date)")
             return
         }
         
-        // Calculate the next date based on repetition type
         let calendar = Calendar.current
-        var nextDate: Date?
         
-        switch repetitionTime.lowercased() {
-        case "daily":
-            nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate)
-        case "weekly":
-            nextDate = calendar.date(byAdding: .weekOfYear, value: 1, to: currentDate)
-        case "monthly":
-            nextDate = calendar.date(byAdding: .month, value: 1, to: currentDate)
-        case "yearly":
-            nextDate = calendar.date(byAdding: .year, value: 1, to: currentDate)
-        default:
-            return // No repetition
+        // Generate 1 year of repetitions from the start date
+        let endDate = calendar.date(byAdding: .year, value: 1, to: startDate) ?? startDate
+        
+        var currentDate = startDate
+        var isFirst = true
+        var count = 0
+        
+        while currentDate <= endDate {
+            // Skip the first one since it's already created
+            if !isFirst {
+                let dateStr = dateFormatter.string(from: currentDate)
+                
+                let dayFormatter = DateFormatter()
+                dayFormatter.dateFormat = "EEEE"
+                let dayStr = dayFormatter.string(from: currentDate)
+                
+                let newChore = Chore(
+                    checklist: chore.checklist,
+                    date: dateStr,
+                    day: dayStr,
+                    description: chore.description,
+                    monthlyRepeatByDate: chore.monthlyRepeatByDate,
+                    monthlyRepeatByWeek: chore.monthlyRepeatByWeek,
+                    name: chore.name,
+                    priorityLevel: chore.priorityLevel,
+                    repetitionTime: chore.repetitionTime,
+                    timeLength: chore.timeLength,
+                    assignedUsers: chore.assignedUsers,
+                    completed: false,
+                    voters: [],
+                    proposal: false,
+                    createdBy: chore.createdBy,
+                    seriesId: seriesId
+                )
+                
+                addChore(chore: newChore, groupKey: groupKey)
+                count += 1
+            }
+            isFirst = false
+            
+            // Calculate next date
+            switch chore.repetitionTime.lowercased() {
+            case "daily":
+                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+            case "weekly":
+                currentDate = calendar.date(byAdding: .weekOfYear, value: 1, to: currentDate) ?? currentDate
+            case "monthly":
+                currentDate = calendar.date(byAdding: .month, value: 1, to: currentDate) ?? currentDate
+            case "yearly":
+                currentDate = calendar.date(byAdding: .year, value: 1, to: currentDate) ?? currentDate
+            default:
+                return
+            }
         }
         
-        guard let newDate = nextDate else { return }
+        print("Generated \(count) repetitions for \(chore.name) until \(dateFormatter.string(from: endDate))")
+    }
+    
+    // Deletes all future occurrences of a repeating chore series
+    func deleteFutureOccurrences(seriesId: String, fromDate: String, groupKey: String, completion: ((Error?) -> Void)? = nil) {
+        guard !seriesId.isEmpty else {
+            completion?(nil)
+            return
+        }
         
-        // Format the new date
-        let newDateStr = dateFormatter.string(from: newDate)
-        
-        // Get the day of week
-        let dayFormatter = DateFormatter()
-        dayFormatter.dateFormat = "EEEE"
-        let newDayStr = dayFormatter.string(from: newDate)
-        
-        // Create the new chore (copy most fields from the original)
-        let newChore = Chore(
-            checklist: choreData["Checklist"] as? Bool ?? false,
-            date: newDateStr,
-            day: newDayStr,
-            description: choreData["Description"] as? String ?? "",
-            monthlyRepeatByDate: choreData["MonthlyRepeatByDate"] as? Bool ?? false,
-            monthlyRepeatByWeek: choreData["MonthlyRepeatByWeek"] as? String ?? "",
-            name: choreData["Name"] as? String ?? "",
-            priorityLevel: choreData["PriorityLevel"] as? String ?? "low",
-            repetitionTime: repetitionTime, // Keep the same repetition
-            timeLength: choreData["TimeLength"] as? Int ?? 30,
-            assignedUsers: choreData["assignedUsers"] as? [String] ?? [],
-            completed: false, // New chore is not completed
-            voters: [],
-            proposal: false, // Auto-approve repeated chores
-            createdBy: choreData["createdBy"] as? String ?? ""
-        )
-        
-        // Add the new chore
-        addChore(chore: newChore, groupKey: groupKey)
-        print("Created next repetition for \(newChore.name) on \(newDateStr)")
+        // Query all chores with this seriesId and date >= fromDate
+        db.collection("chores")
+            .document("group")
+            .collection(groupKey)
+            .whereField("seriesId", isEqualTo: seriesId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching series: \(error)")
+                    completion?(error)
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion?(nil)
+                    return
+                }
+                
+                let batch = self.firestore.batch()
+                
+                for doc in documents {
+                    let choreDate = doc.data()["Date"] as? String ?? ""
+                    // Delete if date is >= fromDate
+                    if choreDate >= fromDate {
+                        batch.deleteDocument(doc.reference)
+                    }
+                }
+                
+                batch.commit { error in
+                    if let error = error {
+                        print("Error deleting future occurrences: \(error)")
+                    } else {
+                        print("Deleted future occurrences for series \(seriesId)")
+                    }
+                    completion?(error)
+                }
+            }
     }
     
     
@@ -552,7 +590,8 @@ func addChore(chore: Chore, groupKey: String){
         "votes": chore.votes,
         "voters": chore.voters,
         "proposal": chore.proposal,
-        "createdBy": chore.createdBy
+        "createdBy": chore.createdBy,
+        "seriesId": chore.seriesId
     ]) { err in
         if let err = err {
             print("Error adding chore: \(err)")
@@ -579,7 +618,8 @@ func editChore(documentId: String, chore: Chore, groupKey: String, completion: @
         "votes": chore.votes,
         "voters": chore.voters,
         "proposal": chore.proposal,
-        "createdBy": chore.createdBy
+        "createdBy": chore.createdBy,
+        "seriesId": chore.seriesId
     ]) { err in
         if let err = err {
             print("Error editing chore: \(err)")
