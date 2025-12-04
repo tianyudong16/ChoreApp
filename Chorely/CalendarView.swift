@@ -10,6 +10,8 @@ import SwiftUI
 struct CalendarView: View {
     
     let userID: String
+    let userName: String
+    
     @StateObject private var viewModel = CalendarViewModel()
     
     @State private var date = Date.now
@@ -48,6 +50,7 @@ struct CalendarView: View {
             if let selected = selectedDate {
                 DailyTasksView(
                     userID: userID,
+                    currentUserName: userName,
                     selectedDate: selected,
                     viewModel: viewModel,
                     isSheetPresentation: true
@@ -255,6 +258,6 @@ struct CalendarHeaderView: View {
 
 #Preview {
     NavigationStack {
-        CalendarView(userID: "test")
+        CalendarView(userID: "test", userName: "Test User")
     }
 }

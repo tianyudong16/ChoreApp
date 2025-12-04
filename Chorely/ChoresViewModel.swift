@@ -184,7 +184,7 @@ class ChoresViewModel: ObservableObject {
         
         for doc in documents {
             let data = doc.data()
-            guard let name = data["Name"] as? String else { continue }
+            let name = (data["Name"] as? String) ?? (data["name"] as? String) ?? ""
             
             let chore = Chore(
                 checklist: data["Checklist"] as? Bool ?? false,

@@ -8,6 +8,14 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import SwiftUI
+
+// Represents a group member for assignment picker
+struct AssignableMember: Identifiable {
+    let id: String
+    let name: String
+    let color: Color
+}
 
 // ViewModel for creating new chores
 // Handles form state and saving to Firebase
@@ -19,8 +27,10 @@ class NewChoreViewModel: ObservableObject {
     @Published var dueDate = Date()        // When the chore is due
     @Published var priorityLevel = "low"   // Priority: low/medium/high
     @Published var repetitionTime = "None" // Repeat: None/Daily/Weekly/Monthly/Yearly
-    @Published var groupMembers: [String] = []   //List of roommate names
-    @Published var assignedUser: String? = nil //Selected roommate name
+    @Published var selectedAssignee: String? = nil // Selected user to assign chore to
+    
+    // Group members for assignment picker
+    @Published var groupMembers: [AssignableMember] = []
     
     // UI state
     @Published var showAlert = false       // Shows error alert
@@ -62,18 +72,17 @@ class NewChoreViewModel: ObservableObject {
                     return
                 }
                 
-                // Count how many members are in this group
-                let memberCount = try await countGroupMembers(groupKey: groupKeyInt)
+                // Fetch group members for assignment
+                let members = try await fetchGroupMembers(groupKey: groupKeyInt)
                 
                 await MainActor.run {
                     self.groupKey = groupKeyStr
                     self.groupKeyInt = groupKeyInt
-                    self.groupMemberCount = memberCount
-                    print("GROUP KEY LOADED: \(groupKeyStr), MEMBERS: \(memberCount)")
-                    
-                    
+                    self.groupMemberCount = members.count
+                    self.groupMembers = members
+                    self.isLoading = false
+                    print("GROUP KEY LOADED: \(groupKeyStr), MEMBERS: \(members.count)")
                 }
-                self.loadGroupMembers()
             } catch {
                 await MainActor.run {
                     self.isLoading = false
@@ -83,67 +92,55 @@ class NewChoreViewModel: ObservableObject {
             }
         }
     }
-    //loads group members to select someone to assign to the chore
-    private func loadGroupMembers() {
-            guard let keyInt = self.groupKeyInt else {
-                print("groupKeyInt is nil, cannot load members")
-                self.isLoading = false
-                return
-            }
-            
-            print("Fetching group members for groupKeyInt = \(keyInt)")
-            
-            FirebaseInterface.shared.fetchGroupMembers(groupKey: keyInt) { documents, error in
-                DispatchQueue.main.async {
-                    defer { self.isLoading = false }
-                    
-                    if let error = error {
-                        print("Error fetching members: \(error)")
-                        return
-                    }
-                    
-                    guard let documents = documents else {
-                        print("No member documents found")
-                        return
-                    }
-                    
-                    self.groupMembers = documents.compactMap { doc in
-                        let data = doc.data()
-                        return (data["name"] as? String) ?? (data["Name"] as? String)
-                    }
-                    
-                    print("Loaded group members: \(self.groupMembers)")
-                }
-            }
-        }
-        
     
-    // Counts how many users are in the group
-    private func countGroupMembers(groupKey: Int) async throws -> Int {
+    // Fetches all group members with their names and colors
+    private func fetchGroupMembers(groupKey: Int) async throws -> [AssignableMember] {
         let snapshot = try await FirebaseInterface.shared.firestore
             .collection("Users")
             .whereField("groupKey", isEqualTo: groupKey)
             .getDocuments()
         
-        return snapshot.documents.count
+        return snapshot.documents.compactMap { doc -> AssignableMember? in
+            let data = doc.data()
+            guard let name = data["Name"] as? String else { return nil }
+            
+            let colorString = data["color"] as? String ?? "Green"
+            let color = colorFromString(colorString)
+            
+            return AssignableMember(id: doc.documentID, name: name, color: color)
+        }
+    }
+    
+    // Convert color string to SwiftUI Color
+    private func colorFromString(_ colorName: String) -> Color {
+        switch colorName.lowercased() {
+        case "red": return .red
+        case "blue": return .blue
+        case "green": return .green
+        case "yellow": return .yellow
+        case "orange": return .orange
+        case "purple": return .purple
+        case "pink": return .pink
+        case "cyan": return .cyan
+        case "mint": return .mint
+        case "teal": return .teal
+        case "indigo": return .indigo
+        default: return .green
+        }
     }
     
     // Validates if the form can be saved
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !isLoading &&
-        groupKey != nil &&
-        assignedUser != nil
+        groupKey != nil
     }
     
     // Saves the new chore to Firebase
-        // Validate before saving
-    func save(){
+    func save() {
         guard canSave,
-            let groupKey = groupKey,
-            let userID = currentUserID,
-            let assignee = assignedUser
-        else {
+              let groupKey = groupKey,
+              let userID = currentUserID else {
             showAlert = true
             return
         }
@@ -163,6 +160,12 @@ class NewChoreViewModel: ObservableObject {
         // Generate a unique series ID for repeating chores
         let seriesId = repetitionTime != "None" ? UUID().uuidString : ""
         
+        // Build assigned users array
+        var assignedUsers: [String] = []
+        if let assignee = selectedAssignee {
+            assignedUsers = [assignee]
+        }
+        
         let newChore = Chore(
             checklist: false,
             date: dateStr,
@@ -173,8 +176,8 @@ class NewChoreViewModel: ObservableObject {
             name: title,
             priorityLevel: priorityLevel,
             repetitionTime: repetitionTime,
-            timeLength: 30, // Default 30 minutes
-            assignedUsers: [assignee], //roommate chore is assigned to
+            timeLength: 30,
+            assignedUsers: assignedUsers,
             completed: false,
             voters: [],
             proposal: needsApproval,
@@ -198,6 +201,6 @@ class NewChoreViewModel: ObservableObject {
         title = ""
         description = ""
         dueDate = Date()
-        assignedUser = nil
+        selectedAssignee = nil
     }
 }

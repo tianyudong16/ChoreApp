@@ -38,7 +38,7 @@ struct NewChoreView: View {
                     .textFieldStyle(DefaultTextFieldStyle())
                 
                 // Priority level selector (Low/Medium/High)
-                Section {
+                Section(header: Text("Priority")) {
                     Picker("Priority", selection: $viewModel.priorityLevel) {
                         Text("Low").tag("low")
                         Text("Medium").tag("medium")
@@ -48,7 +48,7 @@ struct NewChoreView: View {
                 }
                 
                 // Repetition frequency selector
-                Section {
+                Section(header: Text("Repeat")) {
                     Picker("Repeat", selection: $viewModel.repetitionTime) {
                         Text("Does not repeat").tag("None")
                         Text("Daily").tag("Daily")
@@ -59,18 +59,26 @@ struct NewChoreView: View {
                     .pickerStyle(.menu)
                 }
                 
-                
+                // Assign to group member section
                 Section(header: Text("Assign To")) {
                     if viewModel.isLoading {
-                        Text("Loading group members…")
+                        Text("Loading group membersâ€¦")
                             .foregroundColor(.secondary)
                             .italic()
                     } else if viewModel.groupMembers.isEmpty {
                         Text("No group members found")
                             .foregroundColor(.secondary)
                     } else {
-                        Picker("Roommate", selection: $viewModel.assignedUser) {
-                                ForEach(viewModel.groupMembers, id: \.self) { name in Text(name).tag(Optional(name))
+                        Picker("Roommate", selection: $viewModel.selectedAssignee) {
+                            Text("Unassigned").tag(nil as String?)
+                            ForEach(viewModel.groupMembers) { member in
+                                HStack {
+                                    Circle()
+                                        .fill(member.color)
+                                        .frame(width: 10, height: 10)
+                                    Text(member.name)
+                                }
+                                .tag(member.name as String?)
                             }
                         }
                     }
@@ -84,12 +92,13 @@ struct NewChoreView: View {
                         .italic()
                 } else {
                     // Save button
-                    ChorelyButton(title: "Save", background: .pink) {
-                        viewModel.save()
-                        newChorePresented = false // Dismiss sheet
+                    ChorelyButton(title: "Save", background: viewModel.canSave ? .pink : .gray) {
+                        if viewModel.canSave {
+                            viewModel.save()
+                            newChorePresented = false
+                        }
                     }
                     .padding()
-                    .disabled(!viewModel.canSave)
                 }
             }
             
