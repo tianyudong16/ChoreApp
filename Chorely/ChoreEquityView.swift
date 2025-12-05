@@ -13,6 +13,7 @@ struct MemberScore: Identifiable {
     let name: String
     let score: Int
     let color: Color
+    let numChores: Int
 }
 
 struct ChoreEquityView: View {
@@ -89,14 +90,19 @@ struct ChoreEquityView: View {
                 let score = try await FirebaseInterface.shared.calculateScoreForUser(
                     uid: member.id,
                     groupKey: groupKey,
-                    duration: 0
+                )
+                
+                let numChores = try await FirebaseInterface.shared.getNumLogChores(
+                    uid: member.id,
+                    groupKey: groupKey,
                 )
 
                 temp.append(
                     MemberScore(
                         name: member.name,
                         score: score,
-                        color: member.color
+                        color: member.color,
+                        numChores: numChores,
                     )
                 )
                 

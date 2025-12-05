@@ -323,16 +323,18 @@ class FirebaseInterface {
      }
      }*/
     
-    //Returns all chores for a given user
-    //duration 0 = for all time, 1 = for past month, 2 = for past week
-    func getLogChores(uid: String, groupKey:String, duration:Int) async throws -> [String] {
+    //Returns all chores that were completed by a given user, as recorded in the log
+    //note: we eneded up not using this function in our final project
+    func getLogChores(uid: String, groupKey:String) async throws -> [String] {
         let userRef = db.collection("Users").document(uid)//Should not be stored as a path sry
         print("Accessing the chore log...")
         let snapshot = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments()
         return snapshot.documents.compactMap { $0.get("chore") as? String }
     }
     
-    func getNumLogChores(uid: String, groupKey:String, duration:Int) async throws -> Int {
+    //Returns the total number of chores that were completed by a given user, as recorded in the log
+    //note: we eneded up not using this function in our final project either
+    func getNumLogChores(uid: String, groupKey:String) async throws -> Int {
         let userRef = db.collection("Users").document(uid)
         print("Accessing the chore log...")
         let choreCount = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments().count
@@ -345,7 +347,7 @@ class FirebaseInterface {
     //Point system based on priority from low, medium, and highest: 3, 6, and 9 points are given respectively
     //Point system based on time length from 1 point for a chore taking 5 min, 2 for a chore taking 10 min, 3 for a chore taking 15 min, 6 for a chore taking 30 min, 9 for a chore taking 45 min, and 12 for a chore taking 1 hr
     //Point system for doing an assigned chore is 6 and 3 for doing someone else’s chore
-    func calculateScoreForUser(uid: String, groupKey:String, duration:Int) async throws -> Int {
+    func calculateScoreForUser(uid: String, groupKey:String) async throws -> Int {
         var score = 0
         
         print("Accessing the chore log...")
@@ -399,20 +401,6 @@ class FirebaseInterface {
         }
         return score
     }
-    
-    /*
-     //milo's private func for testing log once I can find a place to test it
-     private func testing() async {
-         guard let userId = Auth.auth().currentUser?.email else {return}
-         do {
-             let userData = try await FirebaseInterface.shared.getUserData(uid: FirebaseInterface.shared)
-             let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
-             let userLog = FirebaseInterface.shared.getLogChores(uid: userID, groupKey: keys?, duration: 0)
-             print(userLog)
-         } catch {
-             print("Error loading user data: \(error)")
-         }
-     */
     
     // Generates all future occurrences for a repeating chore
     // Creates chores up to 3 months in advance
