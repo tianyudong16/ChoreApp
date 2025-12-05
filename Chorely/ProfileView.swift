@@ -35,6 +35,13 @@ struct ProfileView: View {
     @State private var showLeaveAlert = false
     @State private var showImagePicker = false
     
+    // Join/Leave group states
+    @State private var joinErrorMessage = ""
+    @State private var showJoinError = false
+    @State private var showJoinSuccess = false
+    @State private var newGroupName = ""
+    @State private var isProcessingGroup = false
+    
     // Profile photo state
     @State private var profileImage: Image? = Image(systemName: "person.circle")
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
@@ -205,10 +212,15 @@ struct ProfileView: View {
             }
             .alert("Join Group", isPresented: $showJoinAlert) {
                 TextField("Group code", text: $groupCode)
-                Button("Cancel", role: .cancel) {}
-                Button("Join") { /* TODO: Implement join functionality */ }
+                    .keyboardType(.numberPad)
+                Button("Cancel", role: .cancel) {
+                    groupCode = ""
+                }
+                Button("Join") {
+                    joinGroup()
+                }
             } message: {
-                Text("Enter group code to join.")
+                Text("Enter the 6-digit group code to join an existing group. You will leave your current group.")
             }
             
             // About Group navigation link
@@ -221,13 +233,38 @@ struct ProfileView: View {
                 ProfileRow(icon: "rectangle.portrait.and.arrow.right", label: "Leave Group", color: .red)
             }
             .alert("Leave Group?", isPresented: $showLeaveAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Leave", role: .destructive) { /* TODO: Implement leave functionality */ }
+                TextField("New group name", text: $newGroupName)
+                Button("Cancel", role: .cancel) {
+                    newGroupName = ""
+                }
+                Button("Leave", role: .destructive) {
+                    leaveGroup()
+                }
             } message: {
-                Text("Are you sure you want to leave this group?")
+                Text("You will be removed from \"\(groupName)\" and a new group will be created for you. Enter a name for your new group.")
             }
         }
         .padding(.horizontal)
+        .alert("Error", isPresented: $showJoinError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(joinErrorMessage)
+        }
+        .alert("Success", isPresented: $showJoinSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("You have successfully joined the group!")
+        }
+        .overlay {
+            if isProcessingGroup {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                ProgressView("Processing...")
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+            }
+        }
     }
     
     // Notifications toggle
@@ -375,6 +412,109 @@ struct ProfileView: View {
         ) { error in
             if error == nil {
                 print("Name saved: \(newName)")
+            }
+        }
+    }
+    
+    // Joins an existing group using the entered group code
+    private func joinGroup() {
+        // Validate group code
+        guard !groupCode.isEmpty else {
+            joinErrorMessage = "Please enter a group code"
+            showJoinError = true
+            return
+        }
+        
+        guard let groupKeyInt = Int(groupCode) else {
+            joinErrorMessage = "Group code must be a 6-digit number"
+            showJoinError = true
+            groupCode = ""
+            return
+        }
+        
+        isProcessingGroup = true
+        
+        // Check if the group exists
+        FirebaseInterface.shared.checkGroupExists(groupKey: groupKeyInt) { exists, userData in
+            if !exists {
+                DispatchQueue.main.async {
+                    isProcessingGroup = false
+                    joinErrorMessage = "No group found with code: \(groupCode)"
+                    showJoinError = true
+                    groupCode = ""
+                }
+                return
+            }
+            
+            // Get the group name from existing group
+            let targetGroupName = userData?["groupName"] as? String ?? "Home"
+            
+            // Update user's group key and group name
+            Task {
+                do {
+                    try await Chorely.joinGroup(userID: userID, groupKey: groupKeyInt)
+                    
+                    // Also update the group name
+                    try await FirebaseInterface.shared.updateUserField(
+                        userID: userID,
+                        field: "groupName",
+                        value: targetGroupName
+                    )
+                    
+                    await MainActor.run {
+                        isProcessingGroup = false
+                        groupCodeDisplay = groupCode
+                        groupName = targetGroupName
+                        groupCode = ""
+                        showJoinSuccess = true
+                    }
+                } catch {
+                    await MainActor.run {
+                        isProcessingGroup = false
+                        joinErrorMessage = "Failed to join group: \(error.localizedDescription)"
+                        showJoinError = true
+                        groupCode = ""
+                    }
+                }
+            }
+        }
+    }
+    
+    // Leaves the current group and creates a new one for the user
+    private func leaveGroup() {
+        // Use default name if none provided
+        let newName = newGroupName.isEmpty ? "\(name)'s Group" : newGroupName
+        
+        isProcessingGroup = true
+        
+        // Generate a new group key
+        let newGroupKey = Int.random(in: 100000...999999)
+        
+        Task {
+            do {
+                // Update user's group key
+                try await Chorely.joinGroup(userID: userID, groupKey: newGroupKey)
+                
+                // Update user's group name
+                try await FirebaseInterface.shared.updateUserField(
+                    userID: userID,
+                    field: "groupName",
+                    value: newName
+                )
+                
+                await MainActor.run {
+                    isProcessingGroup = false
+                    groupCodeDisplay = String(newGroupKey)
+                    groupName = newName
+                    newGroupName = ""
+                }
+            } catch {
+                await MainActor.run {
+                    isProcessingGroup = false
+                    joinErrorMessage = "Failed to leave group: \(error.localizedDescription)"
+                    showJoinError = true
+                    newGroupName = ""
+                }
             }
         }
     }
