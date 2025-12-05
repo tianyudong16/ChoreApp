@@ -261,6 +261,7 @@ private struct TaskCard: View {
     let viewModel: CalendarViewModel
     
     @State private var showDeleteAlert = false
+    @State private var showEditSheet = false
     
     // Color for the card border based on priority
     private var priorityColor: Color {
@@ -324,6 +325,14 @@ private struct TaskCard: View {
         } message: {
             Text("This will delete this chore and all future occurrences in this series. This cannot be undone.")
         }
+        // Edit chore sheet - reusing NewChoreView
+        .sheet(isPresented: $showEditSheet) {
+            NewChoreView(
+                newChorePresented: $showEditSheet,
+                choreID: choreID,
+                chore: chore
+            )
+        }
     }
     
     // Header with name, date, priority, menu, and completion checkbox
@@ -348,8 +357,16 @@ private struct TaskCard: View {
             }
             Spacer()
             
-            // 3-dot menu for delete options
+            // 3-dot menu for edit and delete options
             Menu {
+                Button {
+                    showEditSheet = true
+                } label: {
+                    Label("Edit Chore", systemImage: "pencil")
+                }
+                
+                Divider()
+                
                 Button(role: .destructive) {
                     viewModel.deleteChore(choreID: choreID)
                 } label: {

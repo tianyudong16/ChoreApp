@@ -120,6 +120,7 @@ struct ChoreRowView: View {
     let onDeleteFuture: () -> Void
     
     @State private var showDeleteFutureAlert = false
+    @State private var showEditSheet = false
     
     // Check if this is part of a repeating series
     private var isRepeating: Bool {
@@ -204,6 +205,14 @@ struct ChoreRowView: View {
                 
                 // 3-dot menu button
                 Menu {
+                    Button {
+                        showEditSheet = true
+                    } label: {
+                        Label("Edit Chore", systemImage: "pencil")
+                    }
+                    
+                    Divider()
+                    
                     Button(role: .destructive) {
                         onDeleteSingle()
                     } label: {
@@ -236,6 +245,14 @@ struct ChoreRowView: View {
             }
         } message: {
             Text("This will delete this chore and all future occurrences in this series. This cannot be undone.")
+        }
+        // Edit chore sheet - reusing NewChoreView
+        .sheet(isPresented: $showEditSheet) {
+            NewChoreView(
+                newChorePresented: $showEditSheet,
+                choreID: choreID,
+                chore: chore
+            )
         }
     }
 }

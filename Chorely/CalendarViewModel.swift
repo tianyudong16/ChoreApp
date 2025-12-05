@@ -62,6 +62,10 @@ class CalendarViewModel: ObservableObject {
     private var membersListener: ListenerRegistration?      // Real-time listener for members
     private let eventStore = EKEventStore()
     
+    var currentGroupKey: String? {
+        return groupKey
+    }
+    
     
     // Returns all chore document IDs as an array
     var choreIDs: [String] {
@@ -336,7 +340,7 @@ class CalendarViewModel: ObservableObject {
                 }
                 
             default:
-                break      // "None" or anything else → no repeat
+                break // "None" or anything else then no repeat
             }
             
             if !rules.isEmpty {

@@ -44,6 +44,10 @@ class ChoresViewModel: ObservableObject {
     
     init() {}
     
+    var currentGroupKey: String? {
+        return groupKey
+    }
+    
     func startListening(groupKey: String) {
         self.groupKey = groupKey
         self.groupKeyInt = Int(groupKey)

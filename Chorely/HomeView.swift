@@ -219,8 +219,24 @@ struct HomeView: View {
     
     // Navigation buttons to Today's Chores and View Chores
     private var actionButtonsSection: some View {
-        // Filter pending chores to only show ones NOT created by current user
-        let approvableChores = choresViewModel.pendingChores.filter { $0.chore.createdBy != userID }
+        // Filter pending chores to only show ones that:
+        // 1. Were NOT created by current user
+        // 2. Were NOT assigned by the creator to themselves
+        let approvableChores = choresViewModel.pendingChores.filter { item in
+            let chore = item.chore
+            // Skip if created by current user
+            if chore.createdBy == userID {
+                return false
+            }
+            // Skip if the creator assigned it to themselves
+            if let assignee = chore.assignedUsers.first,
+               let creator = groupMembers.first(where: { $0.id == chore.createdBy }) {
+                if assignee == creator.name {
+                    return false
+                }
+            }
+            return true
+        }
         
         return VStack(spacing: 12) {
             // Today's Chores button - opens DailyTasksView for today
