@@ -18,36 +18,6 @@
             endingLineNumber = "66"
             landmarkName = "calendarDisplayDays"
             landmarkType = "24">
-            <Locations>
-               <Location
-                  uuid = "B920185C-DCE7-4BEE-B7D1-043AE3EBF8AB - 24d9bf3b13151f65"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "Foundation.Date.calendarDisplayDays.getter : Swift.Array&lt;Foundation.Date&gt;"
-                  moduleName = "Chorely.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/miloguan/Documents/ChoreApp2/Chorely/DateAndExtension.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "66"
-                  endingLineNumber = "66">
-               </Location>
-               <Location
-                  uuid = "B920185C-DCE7-4BEE-B7D1-043AE3EBF8AB - 24d9bf3b13151f65"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "Foundation.Date.calendarDisplayDays.getter : Swift.Array&lt;Foundation.Date&gt;"
-                  moduleName = "Chorely.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/miloguan/Documents/ChoreApp2/Chorely/DateAndExtension.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "66"
-                  endingLineNumber = "66">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
