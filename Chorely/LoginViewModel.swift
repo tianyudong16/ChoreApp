@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseAuth
 
 @MainActor
 final class LoginViewModel: ObservableObject {
@@ -13,32 +14,26 @@ final class LoginViewModel: ObservableObject {
     @Published var password = ""
     @Published var errorMessage = ""
     
-    // Milo's loginUser function
     func loginUser(email: String, password: String, completion: @escaping (Bool, UserInfo?) -> Void) {
         guard !email.isEmpty else {
-            errorMessage = "No email found!"
-            print("no email found!")
+            errorMessage = "Please enter your email address."
             completion(false, nil)
             return
         }
         guard !password.isEmpty else {
-            errorMessage = "No password found!"
-            print("no password found!")
+            errorMessage = "Please enter your password."
             completion(false, nil)
             return
         }
         
+        
         Task {
             do {
                 let returnedUserData = try await FirebaseInterface.shared.signIn(email: email, password: password)
-                print("success")
-                print(returnedUserData)
                 
-                // Fetch user data from Firestore
                 let userData = try await FirebaseInterface.shared.getUserData(uid: returnedUserData.uid)
                 
-                // Note: Use "Name" (capitalized) to match what's stored in Firestore
-                let name = userData["Name"] as? String ?? "User" // Changed from "name" to "Name"
+                let name = userData["Name"] as? String ?? "User"
                 let groupName = userData["groupName"] as? String ?? "Home"
                 
                 let userInfo = UserInfo(
@@ -51,19 +46,30 @@ final class LoginViewModel: ObservableObject {
                 completion(true, userInfo)
                 
             } catch {
-                print("Error: \(error)")
-                // ADDED ERROR HANDLING FOR NON-EXISTENT USER
-                if let authError = error as NSError? {
-                    if authError.code == 17004 || authError.code == 17011 {
-                        errorMessage = "No account found. Please register first."
-                    } else {
-                        errorMessage = "Login failed: \(error.localizedDescription)"
-                    }
-                } else {
-                    errorMessage = "Login failed: \(error.localizedDescription)"
-                }
+                handleLoginError(error)
                 completion(false, nil)
             }
         }
+    }
+    
+    private func handleLoginError(_ error: Error) {
+        let authError = AuthErrorCode(rawValue: (error as NSError).code)
+        
+        switch authError {
+        case .wrongPassword, .invalidCredential:
+            errorMessage = "Incorrect password or email. Please try again."
+        case .userNotFound:
+            errorMessage = "No account found with this email. Please register first."
+        case .invalidEmail:
+            errorMessage = "Please enter a valid email address."
+        case .userDisabled:
+            errorMessage = "This account has been disabled. Please contact support."
+        case .networkError:
+            errorMessage = "Network error. Please check your connection and try again."
+        default:
+            errorMessage = "Login failed. Please check your email and password."
+        }
+        
+        print("Login error: \(error.localizedDescription)")
     }
 }
