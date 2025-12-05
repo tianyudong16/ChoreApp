@@ -241,7 +241,7 @@ class FirebaseInterface {
         }//Grab the current users uid
         let userRefStrings = [db.collection("Users").document(userId).documentID]//Get a reference to the currently logged in user's doc & save it as an array
         let userRefs = userRefStrings.map { id in
-            db.collection("users").document(id)
+            db.collection("Users").document(id)
         }//convert it to an array of document references
         
         let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
@@ -268,7 +268,7 @@ class FirebaseInterface {
         //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
         let userRefStrings = [db.collection("Users").document(uid).documentID]//Get a reference to the given user's doc & save it as an array
         let userRefs = userRefStrings.map { id in
-            db.collection("users").document(id)
+            db.collection("Users").document(id)
         }//convert it to an array of document references
         
         let choreRefString = db.collection("chores").document("group").collection(groupKey).document(choreId)
@@ -326,14 +326,14 @@ class FirebaseInterface {
     //Returns all chores for a given user
     //duration 0 = for all time, 1 = for past month, 2 = for past week
     func getLogChores(uid: String, groupKey:String, duration:Int) async throws -> [String] {
-        let userRef = db.collection("users").document(uid)//Should not be stored as a path sry
+        let userRef = db.collection("Users").document(uid)//Should not be stored as a path sry
         print("Accessing the chore log...")
         let snapshot = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments()
         return snapshot.documents.compactMap { $0.get("chore") as? String }
     }
     
     func getNumLogChores(uid: String, groupKey:String, duration:Int) async throws -> Int {
-        let userRef = db.collection("users").document(uid)
+        let userRef = db.collection("Users").document(uid)
         print("Accessing the chore log...")
         let choreCount = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments().count
         return choreCount
@@ -350,16 +350,17 @@ class FirebaseInterface {
         
         print("Accessing the chore log...")
         do {
-            let userRefPath = db.collection("users").document(uid)
+            let userRefPath = db.collection("Users").document(uid)
             let userName = try await userRefPath.getDocument().data()?["Name"] as? String ?? "ErrorUser"
             
             let logsDoneByUser = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRefPath).getDocuments ()
                
             for doc in logsDoneByUser.documents {
-                guard let chorePath = doc.get("chore") as? String else {
-                    print("couldn't get chrore path")
+                guard let choreRef = doc.get("chore") as? DocumentReference else {
+                    print("couldn't get chore reference")
                     continue
                 }
+                let chorePath = choreRef.path
                 
                 let choreSnapshot = try await db.document(chorePath).getDocument()
                     
@@ -533,11 +534,11 @@ class FirebaseInterface {
     
     //This may be needed as a helper function for makeLogDoc or other functions
     func getGroupMembers(groupKey:Int) async throws -> [String] {
-        let snapshot = try await db.collection("users")
+        let snapshot = try await db.collection("Users")
             .whereField("groupKey", isEqualTo: groupKey)
             .getDocuments()
         
-        return snapshot.documents.compactMap { $0.get("name") as? String }
+        return snapshot.documents.compactMap { $0.get("Name") as? String }
     }
     
     //We won't implement this until we decide how the chore proposal system should work

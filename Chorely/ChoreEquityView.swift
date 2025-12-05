@@ -7,267 +7,356 @@
 
 import SwiftUI
 
+// model for score display
+struct MemberScore: Identifiable {
+    let id = UUID()
+    let name: String
+    let score: Int
+    let color: Color
+}
+
 struct ChoreEquityView: View {
+
     @ObservedObject var viewModel: ChoresViewModel
     let userName: String
-    
+
+    @State private var scores: [MemberScore] = []
+    @State private var loadingScores = true
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header using HeaderView
-                HeaderView(
-                    title: "Chore Equity",
-                    subtitle: "See how chores are shared",
-                    angle: 15,
-                    background: .green
-                )
-                .padding(.bottom, -80)
-                
-                // House completion stats
-                houseCompletionSection
-                
-                Divider()
-                    .padding(.horizontal)
-                
-                // Individual member completion stats with progress bars
-                memberProgressSection
+        VStack(spacing: 0) {
+            //header
+            VStack(spacing: 8) {
+                Text("Chore Equity")
+                    .font(.largeTitle.bold())
+                    .foregroundColor(.green)
+                Text("See fairness for your house")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemGray6))
+            
+            ScrollView {
+                VStack(spacing: 30) {
+                    //progress circles section
+                    donutsSection
+                    Divider()
+                    //roommate scores section (calculated using firebase method)
+                    scoreListSection
+                }
+                .padding()
+            }
+        }
+        .onAppear {
+            Task { await loadFirebaseScores() }
         }
         .navigationBarTitleDisplayMode(.inline)
     }
+
     
-    // House completion section
-    private var houseCompletionSection: some View {
-        VStack(spacing: 20) {
-            Text("House Completion")
+    //load scores from firebase
+    func loadFirebaseScores() async {
+        loadingScores = true
+
+        guard let groupKey = viewModel.currentGroupKey else {
+            print("No group key")
+            loadingScores = false
+            return
+        }
+
+        //wait for group members to be loaded by the view model
+        var attempts = 0
+        while viewModel.groupMembers.isEmpty && attempts < 50 {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            attempts += 1
+        }
+        
+        if viewModel.groupMembers.isEmpty {
+            print("No group members loaded after waiting")
+            loadingScores = false
+            return
+        }
+        
+        print("Found \(viewModel.groupMembers.count) group members")
+
+        var temp: [MemberScore] = []
+
+        for member in viewModel.groupMembers {
+            do {
+                //calculates score
+                let score = try await FirebaseInterface.shared.calculateScoreForUser(
+                    uid: member.id,
+                    groupKey: groupKey,
+                    duration: 0
+                )
+
+                temp.append(
+                    MemberScore(
+                        name: member.name,
+                        score: score,
+                        color: member.color
+                    )
+                )
+                
+                print("Loaded score for \(member.name): \(score) pts")
+
+            } catch {
+                print("Error loading score for \(member.name): \(error)")
+            }
+        }
+
+        //sorts users from highest to lowest based on scores for ranking
+        scores = temp.sorted(by: { $0.score > $1.score })
+        loadingScores = false
+        
+        print("Final scores: \(scores.map { "\($0.name): \($0.score)" }.joined(separator: ", "))")
+    }
+
+    //donuts section (progress circles)
+    private var donutsSection: some View {
+        VStack(spacing: 16) {
+            Text("Chore Completion")
                 .font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-            
-            HStack(spacing: 24) {
-                Spacer()
-                
-                VStack(spacing: 8) {
-                    DonutProgressView(progress: houseCompletionRate, lineWidth: 14)
-                        .frame(width: 110, height: 110)
-                    
-                    Text("Overall")
-                        .font(.headline)
-                    
-                    Text(houseCompletionText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+
+            VStack(spacing: 16) {
+                HStack(spacing: 16) {
+                    //users chores to do that week
+                    donutCard(title: "Your Week", progress: userWeeklyProgress())
+                    //users chores to do that month
+                    donutCard(title: "Your Month", progress: userMonthlyProgress())
                 }
                 
-                VStack(spacing: 8) {
-                    DonutProgressView(progress: userCompletionRate, lineWidth: 14)
-                        .frame(width: 110, height: 110)
-                    
-                    Text(userName)
-                        .font(.headline)
-                    
-                    Text(userCompletionText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                HStack(spacing: 16) {
+                    //all chores for the house that week
+                    donutCard(title: "House Week", progress: houseWeeklyProgress())
+                    //all chores for the house that month
+                    donutCard(title: "House Month", progress: houseMonthlyProgress())
                 }
-                
-                Spacer()
             }
         }
-        .padding(.top, 12)
     }
-    
-    // Member progress section with bars
-    private var memberProgressSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Roommate Progress")
-                    .font(.title2.bold())
-                Spacer()
+
+    //layout for donut
+    private func donutCard(title: String, progress: Double) -> some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 8)
+                    .frame(width: 80, height: 80)
+
+                //progress circle
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.green, .blue],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 80, height: 80)
+
+                //percentage text
+                Text("\(Int(progress * 100))%")
+                    .font(.system(size: 16, weight: .bold))
             }
-            .padding(.horizontal)
-            
-            if viewModel.roommateStats.isEmpty {
-                Text("No group members found")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding()
+
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+
+    //ranking/score section
+    private var scoreListSection: some View {
+        VStack(spacing: 16) {
+            Text("Roommate Rankings")
+                .font(.title2.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if loadingScores {
+                HStack {
+                    ProgressView()
+                    Text("Loading scores...")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else if scores.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "person.2.slash")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray)
+                    Text("No scores available")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
             } else {
                 VStack(spacing: 12) {
-                    ForEach(viewModel.roommateStats) { stat in
-                        MemberProgressRow(
-                            stat: stat,
-                            isCurrentUser: stat.name == userName
-                        )
+                    ForEach(Array(scoresWithRanks.enumerated()), id: \.element.member.id) { index, item in
+                        scoreCard(item.member, rank: item.rank, isTied: item.isTied)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom)
             }
         }
     }
     
-    // Computes house completion
-    private var houseCompletionRate: Double {
-        let allChores = Array(viewModel.chores.values)
-        let total = allChores.count
-        guard total > 0 else { return 0 }
-        let completed = allChores.filter { $0.completed }.count
-        return Double(completed) / Double(total)
+    // Calculate ranks with tie handling
+    private var scoresWithRanks: [(member: MemberScore, rank: Int, isTied: Bool)] {
+        var result: [(member: MemberScore, rank: Int, isTied: Bool)] = []
+        var currentRank = 1
+        
+        for (index, score) in scores.enumerated() {
+            //check if tied with previous
+            let isTiedWithPrevious = index > 0 && scores[index - 1].score == score.score
+            //check if tied with next
+            let isTiedWithNext = index < scores.count - 1 && scores[index + 1].score == score.score
+            let isTied = isTiedWithPrevious || isTiedWithNext
+            
+            //use same rank as previous if tied
+            if isTiedWithPrevious {
+                result.append((member: score, rank: result[index - 1].rank, isTied: isTied))
+            } else {
+                result.append((member: score, rank: currentRank, isTied: isTied))
+            }
+            
+            //only increment rank if not tied with next
+            if !isTiedWithNext {
+                currentRank = index + 2
+            }
+        }
+        
+        return result
     }
-    
-    private var houseCompletionText: String {
-        let allChores = Array(viewModel.chores.values)
-        let total = allChores.count
-        let completed = allChores.filter { $0.completed }.count
-        return "\(completed) / \(total) completed"
-    }
-    
-    // Computes chore completion just for the user
-    private var userCompletionRate: Double {
-        let allChores = Array(viewModel.chores.values)
-        let assigned = allChores.filter { $0.assignedUsers.contains(userName) }
-        let total = assigned.count
-        guard total > 0 else { return 0 }
-        let completed = assigned.filter { $0.completed }.count
-        return Double(completed) / Double(total)
-    }
-    
-    private var userCompletionText: String {
-        let allChores = Array(viewModel.chores.values)
-        let assigned = allChores.filter { $0.assignedUsers.contains(userName) }
-        let total = assigned.count
-        let completed = assigned.filter { $0.completed }.count
-        return "\(completed) / \(total) completed"
-    }
-}
 
-// Row showing individual member progress with colored bar
-struct MemberProgressRow: View {
-    let stat: RoommateStats
-    let isCurrentUser: Bool
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                // Color indicator and name
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(stat.color)
-                        .frame(width: 12, height: 12)
-                    
-                    Text(stat.name)
-                        .font(.headline)
-                        .foregroundColor(isCurrentUser ? .accentColor : .primary)
-                    
-                    if isCurrentUser {
-                        Text("(You)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+    private func scoreCard(_ s: MemberScore, rank: Int, isTied: Bool) -> some View {
+        HStack(spacing: 12) {
+            //rank badge
+            ZStack {
+                Circle()
+                    .fill(rank == 1 ? Color.yellow.opacity(0.3) : Color.gray.opacity(0.2))
+                    .frame(width: 40, height: 40)
                 
-                Spacer()
-                
-                // Completion percentage
-                Text("\(Int(stat.completionRate * 100))%")
-                    .font(.subheadline.bold())
-                    .foregroundColor(completionColor)
-            }
-            
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(stat.color)
-                        .frame(width: geometry.size.width * CGFloat(stat.completionRate), height: 8)
+                if isTied {
+                    Text("T\(rank)")
+                        .font(.subheadline.bold())
+                        .foregroundColor(rank == 1 ? .orange : .secondary)
+                } else {
+                    Text("#\(rank)")
+                        .font(.headline.bold())
+                        .foregroundColor(rank == 1 ? .orange : .secondary)
                 }
             }
-            .frame(height: 8)
-            
-            // Completion count
-            HStack {
-                Text("\(stat.completedCount)/\(stat.totalAssignedCount) chores completed")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                if stat.totalAssignedCount == 0 {
-                    Text("No assigned chores")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                }
-            }
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
-        )
-    }
-    
-    private var completionColor: Color {
-        switch stat.completionRate {
-        case 0.8...1.0: return .green
-        case 0.5..<0.8: return .orange
-        default: return .red
-        }
-    }
-}
 
-// For the circle progress view
-struct DonutProgressView: View {
-    let progress: Double   // 0-1 because it's a percent
-    let lineWidth: CGFloat
-    
-    var clampedProgress: Double {
-        min(max(progress, 0), 1)
-    }
-    
-    var body: some View {
-        ZStack {
+            //user avatar
             Circle()
-                .stroke(Color.gray.opacity(0.2), lineWidth: lineWidth)
-            
-            Circle()
-                .trim(from: 0, to: clampedProgress)
-                .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [.green, .blue, .green]),
-                        center: .center
-                    ),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                .fill(s.color)
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Text(s.name.prefix(1).uppercased())
+                        .foregroundColor(.white)
+                        .font(.headline.bold())
                 )
-                .rotationEffect(.degrees(-90))
+
+            //name and score
+            VStack(alignment: .leading, spacing: 2) {
+                Text(s.name)
+                    .font(.headline)
+                Text("\(s.score) points")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
             
-            Text("\(Int(clampedProgress * 100))%")
-                .font(.headline)
+            //trophy for housemember with most chores completed
+            if rank == 1 {
+                Image(systemName: isTied ? "trophy" : "trophy.fill")
+                    .foregroundColor(.yellow)
+                    .font(.title2)
+            }
         }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
-}
 
-
-
-#Preview {
-    // Just for the preview
-    let vm = ChoresViewModel()
     
-    // Create sample data for preview
-    vm.roommateStats = [
-        RoommateStats(name: "You", completedCount: 8, totalAssignedCount: 10, color: .blue),
-        RoommateStats(name: "Alex", completedCount: 6, totalAssignedCount: 8, color: .green),
-        RoommateStats(name: "Taylor", completedCount: 5, totalAssignedCount: 7, color: .orange),
-        RoommateStats(name: "Jordan", completedCount: 3, totalAssignedCount: 5, color: .purple),
-        RoommateStats(name: "Casey", completedCount: 0, totalAssignedCount: 2, color: .red)
-    ]
+    //progress calculations
+    private func userWeeklyProgress() -> Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let weekAgo = calendar.date(byAdding: .day, value: -7, to: now)!
+        
+        let userChores = viewModel.approvedChores.filter { item in
+            guard let choreDate = dateFromString(item.chore.date) else { return false }
+            return item.chore.assignedUsers.contains(userName) && choreDate >= weekAgo && choreDate <= now
+        }
+        
+        guard !userChores.isEmpty else { return 0 }
+        let completed = userChores.filter { $0.chore.completed }.count
+        return Double(completed) / Double(userChores.count)
+    }
     
-    return NavigationStack {
-        ChoreEquityView(viewModel: vm, userName: "You")
+    private func userMonthlyProgress() -> Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let monthAgo = calendar.date(byAdding: .day, value: -30, to: now)!
+        
+        let userChores = viewModel.approvedChores.filter { item in
+            guard let choreDate = dateFromString(item.chore.date) else { return false }
+            return item.chore.assignedUsers.contains(userName) && choreDate >= monthAgo && choreDate <= now
+        }
+        
+        guard !userChores.isEmpty else { return 0 }
+        let completed = userChores.filter { $0.chore.completed }.count
+        return Double(completed) / Double(userChores.count)
+    }
+    
+    private func houseWeeklyProgress() -> Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let weekAgo = calendar.date(byAdding: .day, value: -7, to: now)!
+        
+        let houseChores = viewModel.approvedChores.filter { item in
+            guard let choreDate = dateFromString(item.chore.date) else { return false }
+            return choreDate >= weekAgo && choreDate <= now
+        }
+        
+        guard !houseChores.isEmpty else { return 0 }
+        let completed = houseChores.filter { $0.chore.completed }.count
+        return Double(completed) / Double(houseChores.count)
+    }
+    
+    private func houseMonthlyProgress() -> Double {
+        let calendar = Calendar.current
+        let now = Date()
+        let monthAgo = calendar.date(byAdding: .day, value: -30, to: now)!
+        
+        let houseChores = viewModel.approvedChores.filter { item in
+            guard let choreDate = dateFromString(item.chore.date) else { return false }
+            return choreDate >= monthAgo && choreDate <= now
+        }
+        
+        guard !houseChores.isEmpty else { return 0 }
+        let completed = houseChores.filter { $0.chore.completed }.count
+        return Double(completed) / Double(houseChores.count)
+    }
+    
+    private func dateFromString(_ dateString: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: dateString)
     }
 }
