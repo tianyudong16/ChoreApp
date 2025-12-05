@@ -232,6 +232,7 @@ class FirebaseInterface {
     
     //This function writes to the log, making an entry that records that the user who is currently logged in completed the chore at the current time, as well as a reference to the user and the chore.
     //Implemented by Milo on 12/2/25
+    //Milo also implemented the other chore logging functions
     func recordChore(groupKey:String, choreId: String) async throws {
         //let groupKeyAsInt:Int? = (groupKey as NSString).integerValue
         guard let userId = Auth.auth().currentUser?.uid else {
@@ -325,23 +326,78 @@ class FirebaseInterface {
     //Returns all chores for a given user
     //duration 0 = for all time, 1 = for past month, 2 = for past week
     func getLogChores(uid: String, groupKey:String, duration:Int) async throws -> [String] {
-        let userRefPath = db.collection("users").document(uid).path//Forgot to store it as a path
+        let userRef = db.collection("users").document(uid)//Should not be stored as a path sry
         print("Accessing the chore log...")
-        let snapshot = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRefPath).getDocuments()
+        let snapshot = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments()
         return snapshot.documents.compactMap { $0.get("chore") as? String }
     }
     
     func getNumLogChores(uid: String, groupKey:String, duration:Int) async throws -> Int {
-        let userRefPath = db.collection("users").document(uid).path//Forgot to store it as a path
+        let userRef = db.collection("users").document(uid)
         print("Accessing the chore log...")
-        let choreCount = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRefPath).getDocuments().count
+        let choreCount = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRef).getDocuments().count
         return choreCount
     }
     
     //This will calculate the user's score for chore equity purposes
-    //func calculateScoreForUser(uid: String, groupKey:String, duration:Int) async throws -> [Int] {
+    //From system requirements doc, with some changes to the scoring system:
+    //Based on priority, time length of chore, and responsibility of chore(depending if the assigned user of the chore, or another roommate did the chore that was assigned to someone else), then a certain number of points will be given to the user.
+    //Point system based on priority from low, medium, and highest: 3, 6, and 9 points are given respectively
+    //Point system based on time length from 1 point for a chore taking 5 min, 2 for a chore taking 10 min, 3 for a chore taking 15 min, 6 for a chore taking 30 min, 9 for a chore taking 45 min, and 12 for a chore taking 1 hr
+    //Point system for doing an assigned chore is 6 and 3 for doing someone else’s chore
+    func calculateScoreForUser(uid: String, groupKey:String, duration:Int) async throws -> Int {
+        var score = 0
         
-    //}
+        print("Accessing the chore log...")
+        do {
+            let userRefPath = db.collection("users").document(uid)
+            let userName = try await userRefPath.getDocument().data()?["Name"] as? String ?? "ErrorUser"
+            
+            let logsDoneByUser = try await db.collection("chores").document("group").collection(groupKey).document("Logs").collection("ChoreLog").whereField("whoDidIt", arrayContains: userRefPath).getDocuments ()
+               
+            for doc in logsDoneByUser.documents {
+                guard let chorePath = doc.get("chore") as? String else {
+                    print("couldn't get chrore path")
+                    continue
+                }
+                
+                let choreSnapshot = try await db.document(chorePath).getDocument()
+                    
+                guard let choreData = choreSnapshot.data() else {
+                    print("couldn't get chrore doc")
+                    continue
+                }
+                
+                let assignedUsers = choreData["assignedUsers"] as? [String] ?? []
+                if assignedUsers.contains(userName){
+                    score += 6
+                } else{
+                    score += 3
+                    //Milo: this +3 to score also happens if assignedUsers is empty, missing or improperly recorded
+                    //this isn't a serious bug, but something to be aware of
+                }
+                
+                let priority = choreData["PriorityLevel"] as? String ?? ""
+                if priority == "high"{
+                    score += 9
+                } else if priority == "medium"{
+                    score += 6
+                } else if priority == "low" {
+                    score += 3
+                } else {
+                    print("no priority recorded")
+                    //Milo: do nothing else, no need to crash the function just because an attribute is missing
+                }
+                
+                let timeLength = choreData["TimeLength"] as? Int ?? 0
+                score += (timeLength/5)
+            }
+        } catch {
+            print("Error with calculateScoreForUser: \(error)")
+            return -1
+        }
+        return score
+    }
     
     /*
      //milo's private func for testing log once I can find a place to test it
