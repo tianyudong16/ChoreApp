@@ -17,7 +17,7 @@ struct AssignableMember: Identifiable {
     let color: Color
 }
 
-// ViewModel for creating new chores
+// ViewModel for creating and editing chores
 // Handles form state and saving to Firebase
 class NewChoreViewModel: ObservableObject {
     
@@ -34,17 +34,50 @@ class NewChoreViewModel: ObservableObject {
     @Published var groupMembers: [AssignableMember] = []
     
     // UI state
-    @Published var showAlert = false       // Shows error alert
-    @Published var isLoading = true        // Shows loading state while fetching group
+    @Published var showAlert = false
+    @Published var isLoading = true
+    
+    // Edit mode properties
+    private var isEditMode = false
+    private var editingChoreID: String?
+    private var originalChore: Chore?
     
     // User and group info
     private var groupKey: String?
     private var groupKeyInt: Int?
     private var currentUserID: String?
+    private var currentUserName: String?
     private var groupMemberCount: Int = 0
+    
+    // Check if we're in edit mode
+    var isEditing: Bool {
+        return isEditMode
+    }
     
     init() {
         fetchGroupKey()
+    }
+    
+    // Configure the view model for editing an existing chore
+    func configureForEditing(choreID: String, chore: Chore) {
+        isEditMode = true
+        editingChoreID = choreID
+        originalChore = chore
+        
+        // Pre-fill form fields with existing chore data
+        title = chore.name
+        description = chore.description
+        priorityLevel = chore.priorityLevel
+        repetitionTime = chore.repetitionTime
+        timeLength = chore.timeLength
+        selectedAssignee = chore.assignedUsers.first
+        
+        // Parse the date string back to Date
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        if let parsedDate = formatter.date(from: chore.date) {
+            dueDate = parsedDate
+        }
     }
     
     // Fetches the current user's group key and counts group members
@@ -61,9 +94,11 @@ class NewChoreViewModel: ObservableObject {
         
         Task {
             do {
-                // Fetch user data
                 let userData = try await FirebaseInterface.shared.getUserData(uid: uid)
                 let keys = FirebaseInterface.shared.extractGroupKey(from: userData)
+                
+                // Get the current user's name for approval logic
+                let userName = userData["Name"] as? String
                 
                 guard let groupKeyStr = keys.string, let groupKeyInt = keys.int else {
                     await MainActor.run {
@@ -73,7 +108,6 @@ class NewChoreViewModel: ObservableObject {
                     return
                 }
                 
-                // Fetch group members for assignment
                 let members = try await fetchGroupMembers(groupKey: groupKeyInt)
                 
                 await MainActor.run {
@@ -81,8 +115,8 @@ class NewChoreViewModel: ObservableObject {
                     self.groupKeyInt = groupKeyInt
                     self.groupMemberCount = members.count
                     self.groupMembers = members
+                    self.currentUserName = userName
                     self.isLoading = false
-                    print("GROUP KEY LOADED: \(groupKeyStr), MEMBERS: \(members.count)")
                 }
             } catch {
                 await MainActor.run {
@@ -112,7 +146,6 @@ class NewChoreViewModel: ObservableObject {
         }
     }
     
-    // Convert color string to SwiftUI Color
     private func colorFromString(_ colorName: String) -> Color {
         switch colorName.lowercased() {
         case "red": return .red
@@ -130,23 +163,31 @@ class NewChoreViewModel: ObservableObject {
         }
     }
     
-    // Validates if the form can be saved
     var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !isLoading &&
         groupKey != nil
     }
     
-    // Saves the new chore to Firebase
+    // Saves or updates the chore depending on mode
     func save() {
+        if isEditMode {
+            updateChore()
+        } else {
+            createNewChore()
+        }
+    }
+    
+    // Updates an existing chore
+    private func updateChore() {
         guard canSave,
               let groupKey = groupKey,
-              let userID = currentUserID else {
+              let choreID = editingChoreID,
+              let original = originalChore else {
             showAlert = true
             return
         }
         
-        // Format the due date
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateStr = dateFormatter.string(from: dueDate)
@@ -154,14 +195,61 @@ class NewChoreViewModel: ObservableObject {
         dateFormatter.dateFormat = "EEEE"
         let dayStr = dateFormatter.string(from: dueDate)
         
-        // If only 1 user in group, auto-approve (proposal = false)
-        // Otherwise, set as pending (proposal = true)
-        let needsApproval = groupMemberCount > 1
+        var assignedUsers: [String] = []
+        if let assignee = selectedAssignee {
+            assignedUsers = [assignee]
+        }
         
-        // Generate a unique series ID for repeating chores
+        let updatedChore = Chore(
+            checklist: original.checklist,
+            date: dateStr,
+            day: dayStr,
+            description: description,
+            monthlyRepeatByDate: original.monthlyRepeatByDate,
+            monthlyRepeatByWeek: original.monthlyRepeatByWeek,
+            name: title,
+            priorityLevel: priorityLevel,
+            repetitionTime: repetitionTime,
+            timeLength: timeLength,
+            assignedUsers: assignedUsers,
+            completed: original.completed,
+            voters: original.voters,
+            proposal: original.proposal,
+            createdBy: original.createdBy,
+            seriesId: original.seriesId
+        )
+        
+        editChore(documentId: choreID, chore: updatedChore, groupKey: groupKey) { success in
+            if !success {
+                print("Failed to update chore")
+            }
+        }
+    }
+    
+    // Creates a new chore
+    private func createNewChore() {
+        guard canSave,
+              let groupKey = groupKey,
+              let userID = currentUserID else {
+            showAlert = true
+            return
+        }
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateStr = dateFormatter.string(from: dueDate)
+        
+        dateFormatter.dateFormat = "EEEE"
+        let dayStr = dateFormatter.string(from: dueDate)
+        
+        // Check if the chore is assigned to the current user
+        let isAssignedToSelf = selectedAssignee != nil && selectedAssignee == currentUserName
+        
+        // Skip approval if: only 1 user in group OR chore is assigned to self
+        let needsApproval = groupMemberCount > 1 && !isAssignedToSelf
+        
         let seriesId = repetitionTime != "None" ? UUID().uuidString : ""
         
-        // Build assigned users array
         var assignedUsers: [String] = []
         if let assignee = selectedAssignee {
             assignedUsers = [assignee]
@@ -177,7 +265,7 @@ class NewChoreViewModel: ObservableObject {
             name: title,
             priorityLevel: priorityLevel,
             repetitionTime: repetitionTime,
-            timeLength: timeLength, //saves user input
+            timeLength: timeLength,
             assignedUsers: assignedUsers,
             completed: false,
             voters: [],
@@ -186,11 +274,9 @@ class NewChoreViewModel: ObservableObject {
             seriesId: seriesId
         )
         
-        // Add the first chore
         addChore(chore: newChore, groupKey: groupKey)
         
-        // If it's a repeating chore and auto-approved, generate future occurrences
-        // For pending chores, repetitions will be generated after approval
+        // Generate repetitions if chore doesn't need approval and is repeating
         if !needsApproval && repetitionTime != "None" {
             FirebaseInterface.shared.generateRepetitions(for: newChore, groupKey: groupKey, seriesId: seriesId)
         }
@@ -203,5 +289,8 @@ class NewChoreViewModel: ObservableObject {
         description = ""
         dueDate = Date()
         selectedAssignee = nil
+        priorityLevel = "low"
+        repetitionTime = "None"
+        timeLength = 30
     }
 }
